@@ -1,0 +1,41 @@
+[project]
+name = "ayaram-prototype"
+version = "0.1.0a0"
+description = "Ayaram minimum prototype v0.1 — 3-layer Hopfield network simulation in PyTorch (Modern Hopfield + Hebbian, Ramsauer 2020 equivalence check)"
+requires-python = ">=3.10"
+readme = "README.md"
+authors = [
+    { name = "Ayaram project" },
+]
+dependencies = [
+    "torch>=2.7",
+    "numpy>=2.0",
+    "matplotlib>=3.9",
+    "cairosvg>=2.7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.uv]
+# Use the PyTorch CUDA 12.8 wheel index for RTX 5090 (Blackwell, sm_120) support.
+# CPU-only wheels from PyPI would fail to run on this hardware.
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ayaram"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
