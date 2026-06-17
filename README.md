@@ -264,7 +264,6 @@ v0.1 中に着地済（fix）：
 
 ## License
 
-**Undecided** (v0.1 complete, license decision deferred to Aya + Yu).
-Until a license is chosen, this repository is local-only; do **not**
-`git push`. The choice between MIT / Apache 2.0 / other is part of the
-v0.1-completion handoff listed in `_to-cc-m5.md`.
+MIT License — see [LICENSE](LICENSE).
+
+Copyright (c) 2026 uminoyu-lab
