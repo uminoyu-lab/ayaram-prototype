@@ -45,54 +45,10 @@ if _ROOT not in sys.path:
 from ayaram import core, encoding  # noqa: E402
 from ayaram.memory import HopfieldNetwork  # noqa: E402
 
-
-def _learn_with_centered_inter(
-    net: HopfieldNetwork,
-    layer_patterns: list[torch.Tensor],
-) -> None:
-    """CC M4 tweak: install ``W_inter`` from *zero-centered* input patterns,
-    then spectrally normalize. Intra-layer storage uses the raw patterns.
-
-    Why this is a separate code path (not ``HopfieldNetwork.learn`` itself):
-    M3 demonstrated that the bipolar ``{-1, +1}`` bitmaps at layer 0 give
-    pairwise inner products of order ~1024 - (a small term), where the small
-    discriminative term is drowned out by ~700 of "background agreement".
-    The raw Hebb rule ``W_01 = (1/N) sum_p p_0 (x) p_1`` therefore inherits
-    that constant background, and the inter-layer signal ``xi_0 @ W_01``
-    routes *every* layer-0 query to roughly the same direction in layer 1.
-
-    Subtracting the per-dim mean across the training set before the outer
-    product cancels that constant baseline:
-
-        W_inter[l] = (1/N) sum_p (p_l - mean_p p_l) (x) p_{l+1}
-
-    making ``W_inter[l] @ xi_{l+1}`` a "deviation-from-average" signal.
-    Tested in this demo: switching this on rescues layer-2 origin accuracy
-    from 4/8 (M3 / Option-B-only) to substantially better.
-
-    Aru M4 explicitly defers ``{0, 1}`` alphabet to v0.2; zero-centering of
-    the Hebb inputs is a distinct, smaller fix that does not change the
-    state alphabet (layer 0 still operates on bipolar ``{-1, +1}`` for the
-    intra-layer dynamics) and is therefore in-scope as a CC M4 fix.
-    """
-    if len(layer_patterns) != len(net.layer_sizes):
-        raise ValueError("layer_patterns length mismatch")
-    N = layer_patterns[0].shape[0]
-    for l, ps in enumerate(layer_patterns):
-        net.layers[l].store(ps)
-    centered = [p - p.mean(dim=0, keepdim=True) for p in layer_patterns]
-    for l in range(len(net.layer_sizes) - 1):
-        buf = f"W_inter_{l}"
-        ref = getattr(net, buf)
-        p_l = centered[l].to(ref.dtype).to(ref.device)
-        p_lp1 = layer_patterns[l + 1].to(ref.dtype).to(ref.device)
-        W_new = (p_l.T @ p_lp1) / N
-        s = torch.linalg.svdvals(W_new)
-        sn = float(s[0].item()) if s.numel() > 0 else 0.0
-        if sn > 1e-9:
-            W_new = W_new * (1.0 / sn)
-        setattr(net, buf, W_new)
-    net.enforce_constraints()
+# Aru M5 sub-decision (2026-06-17): the demo-local
+# ``_learn_with_centered_inter`` helper that M4 introduced has been promoted
+# into ``HopfieldNetwork.learn(center_inter_inputs=True)``. The demo now
+# calls the canonical API and depends on the M5 ``learn`` option instead.
 
 # M3 hierarchy + bitmap (8 kanji) -- still used as the M3 baseline.
 from data import kanji_hierarchy as KH_M3  # noqa: E402
@@ -183,7 +139,11 @@ def _run_forward(
     occ_flat = torch.from_numpy(occluded.reshape(n, h * w)).to(torch.float32).to(device)
 
     net = HopfieldNetwork(mode=mode, seed=seed).to(device)
-    _learn_with_centered_inter(net, [p0_flat, p1, p2])
+    net.learn(
+        [p0_flat, p1, p2],
+        normalize_inter="spectral",
+        center_inter_inputs=True,
+    )
 
     sizes = net.layer_sizes
     state = core.CycleState(
@@ -402,22 +362,36 @@ def _plot_comparison(
     runs_per_config: dict[str, dict[str, RunResult]],
     out_path: str,
 ) -> None:
-    """Bar chart: config x metric, separating Modern and Hebb."""
-    metric_keys = (
+    """Bar chart with l1_cos promoted to the primary metric (Aru M5 sub-#1).
+
+    Layout: top row shows the four primary metrics
+    (``l0_cos``, ``l1_cos``, ``l2_cos``, ``l2_origin_rate``); a smaller
+    bottom row carries the legacy ``l1_set_match`` for context.
+    """
+    primary = (
         ("l0_cos_mean", "layer 0 cos"),
-        ("l1_cos_mean", "layer 1 cos"),
-        ("l1_set_mean", "layer 1 set match"),
+        ("l1_cos_mean", "layer 1 cos  (primary)"),
         ("l2_cos_mean", "layer 2 cos"),
         ("l2_origin_rate", "layer 2 origin rate"),
     )
+    supplementary = (
+        ("l1_set_mean", "layer 1 set match  (M3 legacy, supplementary)"),
+    )
     configs = list(runs_per_config.keys())
     modes = ("modern", "hebb")
-    n_metrics = len(metric_keys)
+    n_top = len(primary)
 
-    fig, axes = plt.subplots(1, n_metrics, figsize=(3.5 * n_metrics, 4.2), sharey=True)
+    fig = plt.figure(figsize=(3.4 * n_top, 6.4))
+    gs = fig.add_gridspec(
+        2, n_top,
+        height_ratios=[3.0, 1.4],
+        hspace=0.55,
+        wspace=0.20,
+    )
     x = np.arange(len(configs))
     width = 0.36
-    for ax, (mk, mlabel) in zip(axes, metric_keys):
+
+    def _draw(ax, mk: str, mlabel: str, *, accent: bool = False) -> None:
         for j, mode in enumerate(modes):
             vals = [
                 runs_per_config[cfg][mode].summary()[mk] for cfg in configs
@@ -428,17 +402,26 @@ def _plot_comparison(
                 ax.text(xi, v + 0.02, f"{v:.2f}", ha="center", fontsize=7)
         ax.set_xticks(x)
         ax.set_xticklabels(configs, fontsize=9)
-        ax.set_title(mlabel, fontsize=10)
+        title_kwargs = {"fontsize": 11, "fontweight": "bold"} if accent else {"fontsize": 10}
+        ax.set_title(mlabel, **title_kwargs)
         ax.set_ylim(0.0, 1.05)
         ax.grid(True, axis="y", alpha=0.3)
-    axes[0].set_ylabel("score")
-    axes[0].legend(loc="lower right", fontsize=8)
+
+    for i, (mk, mlabel) in enumerate(primary):
+        ax = fig.add_subplot(gs[0, i])
+        _draw(ax, mk, mlabel, accent=(mk == "l1_cos_mean"))
+        if i == 0:
+            ax.set_ylabel("score")
+            ax.legend(loc="lower right", fontsize=8)
+    # supplementary row spans the full width
+    ax_sup = fig.add_subplot(gs[1, :])
+    _draw(ax_sup, *supplementary[0])
+
     fig.suptitle(
-        "M3 vs M4: hierarchical recall accuracy across encoding upgrade and "
-        "kanji-set expansion",
-        fontsize=11,
+        "M3 vs M4: hierarchical recall, M5 primary metric = l1_cos",
+        fontsize=12,
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig.savefig(out_path, dpi=120)
     plt.close(fig)

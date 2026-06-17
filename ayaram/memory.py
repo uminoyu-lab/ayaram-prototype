@@ -148,8 +148,10 @@ class HopfieldNetwork(nn.Module):
         layer_patterns: list[Tensor],
         *,
         normalize_inter: str = "spectral",
+        center_inter_inputs: bool = False,
     ) -> None:
-        """Hierarchical Hebb learning over all layers (Aru M3, 2026-06-17).
+        """Hierarchical Hebb learning over all layers (Aru M3, 2026-06-17;
+        ``center_inter_inputs`` added Aru M5, 2026-06-17).
 
         Layer-internal weights are installed via the existing
         ``HopfieldLayer.store`` for each layer (which already encodes
@@ -178,6 +180,32 @@ class HopfieldNetwork(nn.Module):
                     outer product. Used for reproducing the pre-fix M3
                     behavior in tests and for v0.2 experiments that want
                     physically-scaled couplings.
+            center_inter_inputs:
+                ``False`` (default, M3 / M4 backward-compatible):
+                    use the raw ``layer_patterns`` for the outer products.
+                ``True`` (M5 promotion of the M4 demo helper):
+                    subtract the per-dim mean across patterns before each
+                    outer product:
+
+                        W_inter[l] = (1/N) sum_p (p_l - mean_p p_l) ⊗ p_{l+1}
+
+                    M4 showed this rescues layer-2 origin recall from
+                    4/8 to 10/12 in the 12-kanji hierarchical demo by
+                    cancelling the bipolar bitmap background that otherwise
+                    biases every layer-0 query toward the same layer-1
+                    direction. Use this for Modern-mode hierarchical demos.
+
+                    NOTE (Hebb caveat): combining ``center_inter_inputs=True``
+                    with ``mode='hebb'`` makes the ``tanh(beta * W xi)``
+                    fixed point sign-flip on some queries (M4 observed
+                    layer-1 cos go negative). The option is provided
+                    uniformly because Modern is the headline mode, but Hebb
+                    callers should set this False until v0.2 resolves the
+                    interaction (README v0.2 homework #9).
+
+                    Intra-layer ``HopfieldLayer.store`` is *not* affected --
+                    layer-0 self-recall sees the raw patterns regardless of
+                    this flag.
         """
         if normalize_inter not in ("spectral", "none"):
             raise ValueError(
@@ -203,10 +231,16 @@ class HopfieldNetwork(nn.Module):
                     f"{self.layer_sizes[l]}"
                 )
             self.layers[l].store(ps)
+
+        if center_inter_inputs:
+            inter_inputs = [p - p.mean(dim=0, keepdim=True) for p in layer_patterns]
+        else:
+            inter_inputs = list(layer_patterns)
+
         for l in range(len(self.layer_sizes) - 1):
             buf_name = f"W_inter_{l}"
             ref = getattr(self, buf_name)
-            p_l = layer_patterns[l].to(ref.dtype).to(ref.device)
+            p_l = inter_inputs[l].to(ref.dtype).to(ref.device)
             p_lp1 = layer_patterns[l + 1].to(ref.dtype).to(ref.device)
             # (d_l, d_{l+1})
             W_new = (p_l.T @ p_lp1) / N
