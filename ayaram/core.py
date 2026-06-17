@@ -99,18 +99,46 @@ def phase1_terrain(
     net: HopfieldNetwork,
     state: CycleState,
     input_bias: Tensor,
+    layer_idx: int = 0,
 ) -> None:
-    """Phase 1 (awake, terrain setup): inject ``input_bias`` into layer 0.
+    """Phase 1 (awake, terrain setup): inject ``input_bias`` at ``layer_idx``.
 
-    The state vector is *set* (not updated) so that subsequent phases see the
-    problem terrain. Other layers are left at whatever they came in as.
+    The state vector at ``layer_idx`` is *set* (not updated) so subsequent
+    phases see the problem terrain. Other layers are left at whatever they
+    came in as.
+
+    ``layer_idx`` defaults to 0 -- the input layer for the kanji and MAX-CUT
+    demos. The M3 reverse-recall demo (radical -> kanji) uses ``layer_idx=1``
+    to seed at the radical layer instead.
     """
-    if input_bias.shape != state.xi[0].shape:
-        raise ValueError(
-            f"input_bias shape {tuple(input_bias.shape)} != layer-0 "
-            f"shape {tuple(state.xi[0].shape)}"
+    if layer_idx < 0 or layer_idx >= len(state.xi):
+        raise IndexError(
+            f"layer_idx {layer_idx} out of range for {len(state.xi)} layers"
         )
-    state.xi[0] = input_bias.clone()
+    if input_bias.shape != state.xi[layer_idx].shape:
+        raise ValueError(
+            f"input_bias shape {tuple(input_bias.shape)} != layer-{layer_idx} "
+            f"shape {tuple(state.xi[layer_idx].shape)}"
+        )
+    state.xi[layer_idx] = input_bias.clone()
+
+
+def phase1_learn(
+    net: HopfieldNetwork,
+    layer_patterns: list[Tensor],
+) -> None:
+    """Phase 1 (awake, learning variant): install hierarchical Hebb weights.
+
+    Decision (Aru M3, 2026-06-17): learning lives in Phase 1 so the 4-phase
+    structure is preserved (decision #1). This thin wrapper delegates to
+    ``HopfieldNetwork.learn`` and exists for narrative symmetry with
+    ``phase1_terrain``.
+
+    Args:
+        net:             the network whose weights will be (re)installed.
+        layer_patterns:  one tensor per layer, each shape ``(N, layer_size)``.
+    """
+    net.learn(layer_patterns)
 
 
 def phase2_fluctuation(

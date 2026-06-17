@@ -143,6 +143,101 @@ class HopfieldNetwork(nn.Module):
         demo uses for recall)."""
         self.layers[0].store(patterns)
 
+    def learn(self, layer_patterns: list[Tensor]) -> None:
+        """Hierarchical Hebb learning over all layers (Aru M3, 2026-06-17).
+
+        Layer-internal weights are installed via the existing
+        ``HopfieldLayer.store`` for each layer (which already encodes
+        decision #6 -- symmetry plus Modern-side ``diag = 0``).
+
+        Inter-layer weights are installed by the Hebb outer-product rule:
+
+            W_inter[l] = (1/N) sum_p p_l ⊗ p_{l+1}
+
+        with ``p_l`` the l-th layer slice of the p-th joint pattern. The
+        backward path uses ``W_inter[l].T`` (consistent with the existing
+        ``_inter_layer_signal`` in ``core``).
+
+        Args:
+            layer_patterns: list of length ``len(layer_sizes)``; each entry is
+                            ``(N, layer_size[l])``. Same ``N`` across layers.
+        """
+        if len(layer_patterns) != len(self.layer_sizes):
+            raise ValueError(
+                f"expected {len(self.layer_sizes)} layer-pattern tensors; "
+                f"got {len(layer_patterns)}"
+            )
+        N = layer_patterns[0].shape[0]
+        for l, ps in enumerate(layer_patterns):
+            if ps.dim() != 2:
+                raise ValueError(f"layer {l}: patterns must be 2-D")
+            if ps.shape[0] != N:
+                raise ValueError(
+                    f"layer {l}: got N={ps.shape[0]}, expected N={N}"
+                )
+            if ps.shape[1] != self.layer_sizes[l]:
+                raise ValueError(
+                    f"layer {l}: width {ps.shape[1]} != layer_size "
+                    f"{self.layer_sizes[l]}"
+                )
+            self.layers[l].store(ps)
+        for l in range(len(self.layer_sizes) - 1):
+            buf_name = f"W_inter_{l}"
+            ref = getattr(self, buf_name)
+            p_l = layer_patterns[l].to(ref.dtype).to(ref.device)
+            p_lp1 = layer_patterns[l + 1].to(ref.dtype).to(ref.device)
+            # (d_l, d_{l+1})
+            W_new = (p_l.T @ p_lp1) / N
+            setattr(self, buf_name, W_new)
+        self.enforce_constraints()
+
+    def recall(
+        self,
+        query: Tensor,
+        *,
+        config=None,
+        return_all_layers: bool = True,
+        generator: torch.Generator | None = None,
+    ):
+        """Run a single 4-phase cycle with ``query`` injected at layer 0.
+
+        Returns a dict ``{layer_idx: state}`` if ``return_all_layers``,
+        otherwise the layer-0 readout.
+        """
+        return self.recall_from_layer(
+            query,
+            layer_idx=0,
+            config=config,
+            return_all_layers=return_all_layers,
+            generator=generator,
+        )
+
+    def recall_from_layer(
+        self,
+        query: Tensor,
+        layer_idx: int,
+        *,
+        config=None,
+        return_all_layers: bool = True,
+        generator: torch.Generator | None = None,
+    ):
+        """Run a single 4-phase cycle with ``query`` injected at ``layer_idx``.
+
+        Used by the M3 reverse demo (radical -> kanji): set ``layer_idx=1``
+        and pass a radical pattern.
+        """
+        # Deferred import to avoid the memory <-> core cycle.
+        from . import core as _core
+
+        cfg = config if config is not None else _core.CycleConfig()
+        state = _core.CycleState.from_network(self, device=query.device)
+        _core.phase1_terrain(self, state, query, layer_idx=layer_idx)
+        _core.phase2_fluctuation(self, state, cfg, generator=generator)
+        _core.phase3_fixation(self, state, cfg)
+        if return_all_layers:
+            return {i: state.xi[i].clone() for i in range(len(self.layer_sizes))}
+        return state.xi[0].clone()
+
     def enforce_constraints(self) -> None:
         """Apply decision #6 to every intra-layer weight matrix."""
         for layer in self.layers:

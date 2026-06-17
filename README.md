@@ -41,12 +41,13 @@ aya-sleep relevant, upper layer = aya-awake relevant" framing and the
 - **M2 — DONE** — `ayaram.ising` (Ising / MAX-CUT problem objects) and
   `demos/ising_solver.py` solving Lucas-2014 MAX-CUT via the 4-phase cycle
   on the classical Hebb side.
-- **M3 — planned** — full operation of the 3-layer hierarchical recall;
-  observe how the per-layer barrier `K_u` differences shape inter-layer
-  representations.
+- **M3 — DONE** — `ayaram/encoding.py`, hierarchical Hebb learning
+  (`HopfieldNetwork.learn`), Phase 1 `learn=True` variant, and
+  `demos/hierarchical_kanji.py` for the forward (kanji → radical → origin)
+  and reverse (radical → kanji) demos plus per-layer K_u dynamics.
 - **M5 — planned** — evaluation report (numerical equivalence results,
-  kanji recall screenshots, MAX-CUT statistics), license decision,
-  public-repo decision by Aya + Yu.
+  kanji recall screenshots, MAX-CUT statistics, M3 hierarchical limits),
+  license decision, public-repo decision by Aya + Yu.
 
 ## Workflow
 
@@ -71,22 +72,29 @@ ayaram-prototype/
 │   ├── modes.py         # aya-awake / aya-sleep switching, T and σ (decisions #1, #4)
 │   ├── learning.py      # Modern Hopfield continuous + classical Hebb (decision #2)
 │   ├── memory.py        # 3-layer Hopfield net with W = Wᵀ enforcement (decisions #3, #6)
-│   └── ising.py         # MAX-CUT / Ising problem objects for the 4-phase cycle
+│   ├── ising.py         # MAX-CUT / Ising problem objects for the 4-phase cycle
+│   └── encoding.py      # layer-1 radical + layer-2 origin encoders (M3)
 ├── data/
-│   ├── generate_kanji.py     # reproducible build of the kanji bitmap dataset
-│   └── kanji_8_32x32.npy     # 人木口川火山日月 as (8, 32, 32) float32 in [-1, +1]
+│   ├── __init__.py
+│   ├── generate_kanji.py        # reproducible build of the M1 kanji bitmap dataset
+│   ├── kanji_8_32x32.npy        # M1: 人木口川火山日月  (8, 32, 32) float32 [-1, +1]
+│   ├── kanji_hierarchy.py       # M3 radical / origin dictionaries
+│   ├── generate_kanji_v2.py     # M3 bitmap generator (re-uses generate_kanji.render_kanji)
+│   └── kanji_8_32x32_v2.npy     # M3: 木日月火林明炎晶  (8, 32, 32) float32 [-1, +1]
 ├── demos/
-│   ├── kanji_memory.py   # decision #5
-│   ├── attention_test.py # decision #4
-│   ├── ising_solver.py   # Lucas-2014 MAX-CUT via Hebb-mode 4-phase cycle
-│   └── output/           # generated artifacts (gitignored)
+│   ├── kanji_memory.py        # decision #5
+│   ├── attention_test.py      # decision #4
+│   ├── ising_solver.py        # Lucas-2014 MAX-CUT via Hebb-mode 4-phase cycle
+│   ├── hierarchical_kanji.py  # M3 forward / reverse / dynamics demo
+│   └── output/                # generated artifacts (gitignored)
 └── tests/
     ├── test_smoke.py
     ├── test_modes.py
     ├── test_learning.py
     ├── test_memory.py
     ├── test_core.py
-    └── test_ising.py
+    ├── test_ising.py
+    └── test_hierarchical.py
 ```
 
 ## Requirements
@@ -143,6 +151,35 @@ uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_
      4-phase cycle の汎用性を示す。
    - 必要なら ``IsingProblem`` の subclass を増やすだけで足りる API に
      なっているかを v0.2 着手時に再確認。
+5. **MAX-CUT 焼き鈍しスケジュール**（M2 疑問 #3）
+   - Phase 2 内で σ を時間で減衰させる焼き鈍し（temperature schedule）を
+     組み込み、N=32 以上の MAX-CUT で M2 が頭打ちした「lift over random
+     1.25×」を改善する。
+   - 現状の 4-phase cycle に新たな「sweep」サブフェーズを足すか、Phase 2
+     の σ パラメータを step 関数化するかは v0.2 着手時の設計判断。
+6. **CHISE 自動部首分解 + 階層表現の見直し**（M3 で手作り辞書 + 整数
+   multi-hot を採用した結果、複数の限界が見えた）
+   - M3 では `data/kanji_hierarchy.py` の手作り辞書を使ったが、v0.2 では
+     CHISE（漢字構造データベース）経由の自動分解に置き換える。意符＋音符
+     の二軸を扱う「漢字最小元素方針」に乗せる。
+   - 同時に、整数 multi-hot 表現（林=[2,0,0,0]、晶=[0,3,0,0] 等）が
+     Modern Hopfield の softmax で **高 magnitude colinear pattern が
+     attention を奪い、低 magnitude pattern が想起されない** という基本
+     的な縮退を引き起こすことを M3 で実証（`_tmp-m3-report.md` 参照）。
+     v0.2 では (a) 直交埋め込み（(radical, count) 毎に独立 dim）、
+     (b) 学習時の pattern norm 正規化、いずれかへの移行が必要。
+7. **層 0 の bipolar bitmap が層間 Hebb 学習を背景ノイズで汚染する問題**
+   （M3 で実証、`_tmp-m3-report.md` 参照）
+   - `{-1, +1}` 表現では背景 (-1) 同士の内積が信号同士の内積を凌駕し、
+     層 1 への inter-layer 信号が「全パターン平均（M3 では天体に重い）」
+     に流される。M3 デモでは inter weights を spectral norm 1 に再正規化
+     する CC 工夫で部分緩和したが、本質解決には至っていない。
+   - v0.2 候補：
+     (a) 学習時のみ `{0, 1}` 表現で W_inter を計算し、状態は `{-1, +1}`
+         のまま運用するハイブリッド。
+     (b) 学習時に各パターンを zero-center してから outer product を取る。
+     (c) 物理層対応 (v0.2 宿題 #1) と合わせて、MTJ の double-well を
+         素直に反映した連続値表現に移行する。
 
 ## References
 
