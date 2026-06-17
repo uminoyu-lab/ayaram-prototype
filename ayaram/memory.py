@@ -143,7 +143,12 @@ class HopfieldNetwork(nn.Module):
         demo uses for recall)."""
         self.layers[0].store(patterns)
 
-    def learn(self, layer_patterns: list[Tensor]) -> None:
+    def learn(
+        self,
+        layer_patterns: list[Tensor],
+        *,
+        normalize_inter: str = "spectral",
+    ) -> None:
         """Hierarchical Hebb learning over all layers (Aru M3, 2026-06-17).
 
         Layer-internal weights are installed via the existing
@@ -161,7 +166,24 @@ class HopfieldNetwork(nn.Module):
         Args:
             layer_patterns: list of length ``len(layer_sizes)``; each entry is
                             ``(N, layer_size[l])``. Same ``N`` across layers.
+            normalize_inter:
+                ``'spectral'`` (default, Aru M4 sub-decision):
+                    rescale each ``W_inter[l]`` to spectral norm 1 after the
+                    outer-product accumulation. This was a CC demo-side
+                    workaround in M3 because the raw rule leaves the layer-0
+                    side dominating by ~30x; M4 formalizes it inside
+                    ``learn`` so all clients pick it up consistently.
+                ``'none'``:
+                    leave ``W_inter[l]`` at the raw scale set by the Hebb
+                    outer product. Used for reproducing the pre-fix M3
+                    behavior in tests and for v0.2 experiments that want
+                    physically-scaled couplings.
         """
+        if normalize_inter not in ("spectral", "none"):
+            raise ValueError(
+                f"normalize_inter must be 'spectral' or 'none'; "
+                f"got {normalize_inter!r}"
+            )
         if len(layer_patterns) != len(self.layer_sizes):
             raise ValueError(
                 f"expected {len(self.layer_sizes)} layer-pattern tensors; "
@@ -188,6 +210,11 @@ class HopfieldNetwork(nn.Module):
             p_lp1 = layer_patterns[l + 1].to(ref.dtype).to(ref.device)
             # (d_l, d_{l+1})
             W_new = (p_l.T @ p_lp1) / N
+            if normalize_inter == "spectral":
+                s = torch.linalg.svdvals(W_new)
+                sn = float(s[0].item()) if s.numel() > 0 else 0.0
+                if sn > 1e-9:
+                    W_new = W_new * (1.0 / sn)
             setattr(self, buf_name, W_new)
         self.enforce_constraints()
 
