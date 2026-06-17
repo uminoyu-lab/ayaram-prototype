@@ -238,12 +238,80 @@ def plot_heatmap(
     print(f"saved heatmap -> {out_path}")
 
 
+def part_c_beta_finescan(
+    patterns: np.ndarray,
+    *,
+    n_beta: int = 20,
+    beta_range: tuple[float, float] = (1.0, 10.0),
+    sigma_fixed: float = 1.5,
+    phase2_steps: int = 1000,
+    phase3_steps: int = 100,
+    device: str = "cuda",
+    seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Part C: narrow beta sweep at the noise transition (sigma ~ 1.5).
+
+    M1 saw beta have essentially no effect across the full Part B grid because
+    the 8 kanji are too well separated for the softmax temperature to matter.
+    Part C zooms into the only regime where beta might do something: right at
+    the noise threshold (sigma ~= 1.5), where the recall is partially
+    degraded and selecting the right pattern among the noisy alternatives
+    matters more.
+    """
+    dev = torch.device(device if torch.cuda.is_available() else "cpu")
+    patterns_flat = (
+        torch.from_numpy(patterns.reshape(patterns.shape[0], -1))
+        .to(torch.float32)
+        .to(dev)
+    )
+    betas = np.logspace(np.log10(beta_range[0]), np.log10(beta_range[1]), n_beta)
+    acc = np.zeros(n_beta, dtype=np.float32)
+    print(
+        f"[Part C] beta finescan: {n_beta} points at sigma={sigma_fixed}, "
+        f"on {dev}, phase2={phase2_steps}"
+    )
+    t0 = time.time()
+    for j, beta in enumerate(betas):
+        acc[j] = _recall_accuracy(
+            patterns_flat,
+            beta=float(beta),
+            sigma_global=sigma_fixed,
+            phase2_steps=phase2_steps,
+            phase3_steps=phase3_steps,
+            device=dev,
+            seed=seed + j,
+        )
+    print(f"  done in {time.time() - t0:.1f}s")
+    return betas, acc
+
+
+def plot_finescan(
+    betas: np.ndarray,
+    acc: np.ndarray,
+    sigma_fixed: float,
+    out_path: str,
+) -> None:
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    ax.semilogx(betas, acc, marker="o", color="tab:blue")
+    ax.set_xlabel("beta  (softmax inverse temperature)")
+    ax.set_ylabel("recall cosine similarity")
+    ax.set_title(f"Part C: beta finescan at sigma = {sigma_fixed}")
+    ax.set_ylim(min(0.5, float(acc.min()) - 0.05), 1.02)
+    ax.grid(True, which="both", alpha=0.3)
+    fig.tight_layout()
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+    print(f"saved finescan -> {out_path}")
+
+
 def main(
     *,
     n_beta: int = 20,
     n_sigma: int = 20,
     phase2_steps: int = 1000,
     phase3_steps: int = 100,
+    run_part_c: bool = True,
 ) -> dict:
     os.makedirs(OUT_DIR, exist_ok=True)
     # Part A
@@ -272,7 +340,7 @@ def main(
         sigmas=sigmas,
         accuracy=acc,
     )
-    return {
+    summary = {
         "theorem3_max_abs_diff": res.max_abs_diff,
         "theorem3_mean_abs_diff": res.mean_abs_diff,
         "acc_max": float(acc.max()),
@@ -281,6 +349,30 @@ def main(
         "acc_min": float(acc.min()),
         "out_png": out_png,
     }
+
+    if run_part_c:
+        sigma_fixed = 1.5
+        betas_c, acc_c = part_c_beta_finescan(
+            patterns,
+            n_beta=20,
+            beta_range=(1.0, 10.0),
+            sigma_fixed=sigma_fixed,
+            phase2_steps=phase2_steps,
+            phase3_steps=phase3_steps,
+        )
+        out_c_png = os.path.join(OUT_DIR, "beta_finescan.png")
+        plot_finescan(betas_c, acc_c, sigma_fixed, out_c_png)
+        np.savez(
+            os.path.join(OUT_DIR, "beta_finescan.npz"),
+            betas=betas_c,
+            accuracy=acc_c,
+            sigma_fixed=sigma_fixed,
+        )
+        summary["part_c_out_png"] = out_c_png
+        summary["part_c_acc_min"] = float(acc_c.min())
+        summary["part_c_acc_max"] = float(acc_c.max())
+        summary["part_c_acc_argmax_beta"] = float(betas_c[int(acc_c.argmax())])
+    return summary
 
 
 if __name__ == "__main__":

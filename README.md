@@ -35,14 +35,18 @@ aya-sleep relevant, upper layer = aya-awake relevant" framing and the
   smoke test green, CUDA + RTX 5090 verified. No behavior yet.
 - **M1** — implement `ayaram.{core, modes, learning, memory}` against the
   decisions above. Modern Hopfield update + classical Hebb side-by-side.
-- **M2** — `demos/kanji_memory.py`: store 8 kanji as 16×16 / 32×32 bitmaps
-  and recall from partial input.
-- **M3** — `demos/attention_test.py`: numerically verify Ramsauer 2020
-  Theorem 3 and produce the β ↔ σ correspondence map.
-- **M4** — `demos/ising_solver.py`: solve a small Lucas-2014 instance
-  via the 4-phase cycle with sleep-mode annealing.
-- **M5** — evaluation report (numerical equivalence results, kanji recall
-  screenshots), license decision, public-repo decision by Aya + Yu.
+- **M1 — DONE** — implement `ayaram.{core, modes, learning, memory}`,
+  Modern Hopfield + classical Hebb side by side, kanji associative recall,
+  Ramsauer 2020 Theorem 3 verification, β ↔ σ correspondence map.
+- **M2 — DONE** — `ayaram.ising` (Ising / MAX-CUT problem objects) and
+  `demos/ising_solver.py` solving Lucas-2014 MAX-CUT via the 4-phase cycle
+  on the classical Hebb side.
+- **M3 — planned** — full operation of the 3-layer hierarchical recall;
+  observe how the per-layer barrier `K_u` differences shape inter-layer
+  representations.
+- **M5 — planned** — evaluation report (numerical equivalence results,
+  kanji recall screenshots, MAX-CUT statistics), license decision,
+  public-repo decision by Aya + Yu.
 
 ## Workflow
 
@@ -66,13 +70,23 @@ ayaram-prototype/
 │   ├── core.py          # whole-cell synchronous 4-phase cycle (decision #1)
 │   ├── modes.py         # aya-awake / aya-sleep switching, T and σ (decisions #1, #4)
 │   ├── learning.py      # Modern Hopfield continuous + classical Hebb (decision #2)
-│   └── memory.py        # 3-layer Hopfield net with W = Wᵀ enforcement (decisions #3, #6)
+│   ├── memory.py        # 3-layer Hopfield net with W = Wᵀ enforcement (decisions #3, #6)
+│   └── ising.py         # MAX-CUT / Ising problem objects for the 4-phase cycle
+├── data/
+│   ├── generate_kanji.py     # reproducible build of the kanji bitmap dataset
+│   └── kanji_8_32x32.npy     # 人木口川火山日月 as (8, 32, 32) float32 in [-1, +1]
 ├── demos/
-│   ├── kanji_memory.py  # decision #5
-│   ├── ising_solver.py
-│   └── attention_test.py # decision #4
+│   ├── kanji_memory.py   # decision #5
+│   ├── attention_test.py # decision #4
+│   ├── ising_solver.py   # Lucas-2014 MAX-CUT via Hebb-mode 4-phase cycle
+│   └── output/           # generated artifacts (gitignored)
 └── tests/
-    └── test_smoke.py
+    ├── test_smoke.py
+    ├── test_modes.py
+    ├── test_learning.py
+    ├── test_memory.py
+    ├── test_core.py
+    └── test_ising.py
 ```
 
 ## Requirements
@@ -102,6 +116,33 @@ uv run pytest tests/test_smoke.py
 # CUDA + RTX 5090 visible to PyTorch
 uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
+
+## v0.2 への宿題（M2 時点で確定）
+
+1. **物理層対応の再設計**（M1 疑問 #1、M2 で A 案を追認）
+   - v0.1 では `CycleConfig.sigma_global` を「layer-0 での実効ノイズ std」と
+     工学的に解釈し、他層は `modes.layer_noise_ratio(l) = sqrt(K_u_0 / K_u_l)`
+     でスケールダウン。物理 `sigma_local(l, T) = sqrt(T/K_u_l)` は記録用に
+     保持するのみで、`run_cycle` の数値には乗っていない。
+   - v0.2 では `sigma_global * sigma_local(l, T_global)` を物理通りに掛け、
+     温度 `T_global` 自体を sweep 軸として扱う。`AWAKE` / `SLEEP` の T 値
+     から固定の二点で動かしているのも、連続スイープに切り替える。
+   - これは mumax3 連携の前提条件。
+2. **β 依存性の容量極限実験**（M1 疑問 #2）
+   - 類似字形（一・二・三、口・日・目 等）を含む漢字セットで Modern
+     Hopfield の β 依存性を観察。
+   - 漢字数を増やして指数容量（Ramsauer 2020 Theorem 2 系）の限界点を
+     探索し、N が増えるにつれ β-σ 相転移しきいがどう動くかを記録。
+3. **複数 seed 化による robustness 主張**（M1 疑問 #3）
+   - M5 評価レポート時、`demos/kanji_memory.py` を複数 seed（≥ 10）で
+     再測定。
+   - v0.1 で見えた「Modern cos 1.000、Hebb cos 0.903」を統計量として
+     報告できる形にする。
+4. **MAX-CUT 以外の Lucas-2014 マッピング**（M2 で意図的に v0.1 から除外）
+   - TSP、3-SAT、グラフ彩色などを `ayaram.ising` の同じ枠組みで実装し、
+     4-phase cycle の汎用性を示す。
+   - 必要なら ``IsingProblem`` の subclass を増やすだけで足りる API に
+     なっているかを v0.2 着手時に再確認。
 
 ## References
 

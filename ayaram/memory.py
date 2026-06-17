@@ -119,8 +119,8 @@ class HopfieldNetwork(nn.Module):
         super().__init__()
         self.mode = mode
         self.layer_sizes = tuple(layer_sizes)
-        if len(self.layer_sizes) < 2:
-            raise ValueError("need at least 2 layers")
+        if len(self.layer_sizes) < 1:
+            raise ValueError("need at least 1 layer")
         self.layers = nn.ModuleList(
             [HopfieldLayer(s, mode=mode) for s in self.layer_sizes]
         )
