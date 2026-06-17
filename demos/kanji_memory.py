@@ -119,7 +119,7 @@ def plot_grid(
     fig.suptitle(title)
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved kanji grid -> {out_path}")
 

@@ -450,7 +450,7 @@ def plot_forward_grid(
     )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved forward ({fr.mode}) -> {out_path}")
 
@@ -488,7 +488,7 @@ def plot_dynamics(
     )
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved dynamics -> {out_path}")
 

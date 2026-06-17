@@ -31,13 +31,12 @@ aya-sleep relevant, upper layer = aya-awake relevant" framing and the
 
 ## Milestones
 
-- **M0** — scaffold (this commit). Package skeleton, dependencies pinned,
-  smoke test green, CUDA + RTX 5090 verified. No behavior yet.
-- **M1** — implement `ayaram.{core, modes, learning, memory}` against the
-  decisions above. Modern Hopfield update + classical Hebb side-by-side.
+- **M0 — DONE** — scaffold. Package skeleton, dependencies pinned, smoke
+  test green, CUDA + RTX 5090 verified.
 - **M1 — DONE** — implement `ayaram.{core, modes, learning, memory}`,
   Modern Hopfield + classical Hebb side by side, kanji associative recall,
-  Ramsauer 2020 Theorem 3 verification, β ↔ σ correspondence map.
+  Ramsauer 2020 Theorem 3 verification (max abs diff = 0.000e+00), β ↔ σ
+  correspondence map.
 - **M2 — DONE** — `ayaram.ising` (Ising / MAX-CUT problem objects) and
   `demos/ising_solver.py` solving Lucas-2014 MAX-CUT via the 4-phase cycle
   on the classical Hebb side.
@@ -82,9 +81,9 @@ ayaram-prototype/
 │   ├── core.py          # whole-cell synchronous 4-phase cycle (decision #1)
 │   ├── modes.py         # aya-awake / aya-sleep switching, T and σ (decisions #1, #4)
 │   ├── learning.py      # Modern Hopfield continuous + classical Hebb (decision #2)
-│   ├── memory.py        # 3-layer Hopfield net with W = Wᵀ enforcement (decisions #3, #6)
+│   ├── memory.py        # 3-layer Hopfield net + learn(normalize_inter, center_inter_inputs)
 │   ├── ising.py         # MAX-CUT / Ising problem objects for the 4-phase cycle
-│   └── encoding.py      # layer-1 radical + layer-2 origin encoders (M3)
+│   └── encoding.py      # layer-1 radical + layer-2 origin encoders (M3 + M4 Option B)
 ├── data/
 │   ├── __init__.py
 │   ├── generate_kanji.py            # reproducible build of the M1 kanji bitmap dataset
@@ -114,6 +113,11 @@ ayaram-prototype/
     ├── test_encoding_v15.py
     ├── test_learn_spectral.py
     └── test_learn_centering.py
+docs/
+├── design_decisions.md      # M0-M5 decisions + CC deviations log
+├── stats.md                 # LOC / test count / runtimes / deps
+├── cycle_concept.py         # renders cycle_concept.png
+└── cycle_concept.png        # 4-phase cycle schematic
 ```
 
 ## Requirements
@@ -137,11 +141,39 @@ the project itself in editable mode.
 ## Verification
 
 ```bash
-# Imports + smoke test
-uv run pytest tests/test_smoke.py
+# Full test suite (97 tests, finishes in ~2 s on RTX 5090 / CPython 3.12)
+uv run pytest
 
 # CUDA + RTX 5090 visible to PyTorch
 uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+## Running the demos
+
+All demos write their PNGs / NPZs into `demos/output/` (gitignored, kept
+alive by `.gitkeep`). Runtimes are measured on RTX 5090.
+
+```bash
+# M1 -- Theorem 3 verification + β-σ map (Part B ~7 min, Part C ~22 s)
+uv run python demos/attention_test.py
+
+# M1 -- kanji associative recall (Modern vs Hebb)
+uv run python demos/kanji_memory.py
+
+# M2 -- MAX-CUT on N in {8, 16, 32} x 10 trials (~10 s)
+uv run python demos/ising_solver.py
+
+# M3 -- hierarchical kanji recall, original M3 set (~3 s)
+uv run python demos/hierarchical_kanji.py
+
+# M4 / M5 -- M3 vs M4(8) vs M4(12) comparison with l1_cos as primary (~4 s)
+uv run python demos/hierarchical_kanji_v15.py
+
+# M5 -- reverse recall: radical -> kanji
+uv run python demos/reverse_recall.py
+
+# Documentation figure (4-phase cycle schematic)
+uv run python docs/cycle_concept.py
 ```
 
 ## v0.2 への宿題（M5 時点で再整理）
@@ -232,5 +264,7 @@ v0.1 中に着地済（fix）：
 
 ## License
 
-Undecided. Aya + Yu will decide at v0.1 completion. Until then, this
-repository is local-only; do not `git push`.
+**Undecided** (v0.1 complete, license decision deferred to Aya + Yu).
+Until a license is chosen, this repository is local-only; do **not**
+`git push`. The choice between MIT / Apache 2.0 / other is part of the
+v0.1-completion handoff listed in `_to-cc-m5.md`.

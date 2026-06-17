@@ -258,7 +258,7 @@ def make_figure(
     fig.suptitle("MAX-CUT via Hopfield + 4-phase cycle (sigma_global=1.0)")
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved figure -> {out_path}")
 

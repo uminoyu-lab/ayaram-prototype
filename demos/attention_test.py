@@ -233,7 +233,7 @@ def plot_heatmap(
     )
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved heatmap -> {out_path}")
 
@@ -300,7 +300,7 @@ def plot_finescan(
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved finescan -> {out_path}")
 

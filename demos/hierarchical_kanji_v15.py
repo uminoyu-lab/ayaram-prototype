@@ -353,7 +353,7 @@ def _plot_grid(r: RunResult, out_path: str) -> None:
     )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved {out_path}")
 
@@ -423,7 +423,7 @@ def _plot_comparison(
     )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"saved {out_path}")
 
