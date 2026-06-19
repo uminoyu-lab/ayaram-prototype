@@ -78,3 +78,42 @@ class Mode:
 
 AWAKE = Mode(name="aya-awake", T_global=T_AWAKE)
 SLEEP = Mode(name="aya-sleep", T_global=T_SLEEP)
+
+
+def compute_thermal_noise_amplitude(K_u: float, T: float) -> float:
+    """Thermal-fluctuation amplitude on an MTJ anisotropy energy K_u at
+    temperature T (Kelvin) — v0.1.5 M1 will implement, M0 ships signature only.
+
+    Physical model (M1 target):
+
+        sigma_thermal(K_u, T) = sqrt(k_B * T / K_u_eff(T))
+
+    where ``K_u_eff(T) = K_u * (1 - alpha * (T - T_ref))`` carries the CoFeB
+    perpendicular-anisotropy temperature coefficient ``alpha`` (~ 2e-3 / K
+    around room temperature) and ``T_ref = 300 K`` is the reference at which
+    ``K_u`` is reported. Returned value has units of dimensionless noise
+    standard deviation, consistent with the way ``sigma_local(l, T_global)``
+    already enters ``ayaram.core.phase2_fluctuation``.
+
+    Args:
+        K_u: per-cell perpendicular-anisotropy energy density (J / m^3), at
+             the reference temperature (typically 300 K).
+        T:   absolute temperature in Kelvin. ``T = 0.0`` returns ``0.0`` and
+             is the bit-exact-compat path used in v0.1.5 M0 scaffold.
+
+    Returns:
+        thermal noise amplitude (float, dimensionless).
+
+    References:
+        Sato, H., et al. (2014). "Properties of magnetic tunnel junctions
+        with a MgO/CoFeB/Ta/CoFeB/MgO recording structure down to junction
+        diameter of 11 nm." Applied Physics Letters, 105(6), 062403.
+        (Source of the CoFeB temperature-coefficient dK_u/dT used by the
+        K_u_eff(T) factor above.)
+
+        Brown, W. F. (1963). "Thermal fluctuations of a single-domain
+        particle." Physical Review, 130(5), 1677–1686. (First-principles
+        sLLG noise term — mumax3 uses this directly; the PyTorch side here
+        is an effective surrogate, see design_decisions.md v0.1.5.)
+    """
+    raise NotImplementedError("M1 で実装")

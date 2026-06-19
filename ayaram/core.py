@@ -147,6 +147,8 @@ def phase2_fluctuation(
     config: CycleConfig,
     mode: modes.Mode = modes.SLEEP,
     generator: torch.Generator | None = None,
+    *,
+    temperature_K: float = 0.0,
 ) -> None:
     """Phase 2 (sleep): Langevin-style update with whole-cell synchronous noise.
 
@@ -154,7 +156,17 @@ def phase2_fluctuation(
     comes from ``config.sigma_global`` (layer-0 std) modulated by the layer
     barrier ratio via ``modes.layer_noise_ratio(l)``. See ``modes.sigma_local``
     docstring for the rationale.
+
+    v0.1.5 M0 scaffold: ``temperature_K`` (Kelvin) is the future K_u(T) thermal
+    drive injected on top of ``config.sigma_global``. ``temperature_K == 0.0``
+    (the default) is the **bit-exact** v0.1 compatibility path — no extra
+    arithmetic, no extra RNG draws, identical state evolution. Positive values
+    raise ``NotImplementedError`` until M1 lands ``compute_thermal_noise_amplitude``.
     """
+    if temperature_K < 0.0:
+        raise ValueError("temperature_K must be >= 0")
+    if temperature_K > 0.0:
+        raise NotImplementedError("M1 で実装")
     net.enforce_constraints()
     dt = config.dt
     keep = 1.0 - dt
@@ -209,11 +221,20 @@ def run_cycle(
     config: CycleConfig | None = None,
     initial: CycleState | None = None,
     generator: torch.Generator | None = None,
+    *,
+    temperature_K: float = 0.0,
 ) -> tuple[Tensor, CycleState]:
-    """Run all four phases and return ``(layer-0 readout, final state)``."""
+    """Run all four phases and return ``(layer-0 readout, final state)``.
+
+    ``temperature_K`` is forwarded to ``phase2_fluctuation``. Default 0.0
+    preserves v0.1 bit-exact behavior; M1 will activate the K_u(T) thermal
+    fluctuation path.
+    """
     config = config or CycleConfig()
     state = initial or CycleState.from_network(net, device=input_bias.device)
     phase1_terrain(net, state, input_bias)
-    phase2_fluctuation(net, state, config, generator=generator)
+    phase2_fluctuation(
+        net, state, config, generator=generator, temperature_K=temperature_K
+    )
     phase3_fixation(net, state, config)
     return phase4_readout(state), state

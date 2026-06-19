@@ -19,4 +19,4 @@ All milestones M0 -- M5 are complete. See README.md for the six design
 decisions established by Aya + Yu on 2026-06-17 and the v0.2 homework list.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.5.dev0"
