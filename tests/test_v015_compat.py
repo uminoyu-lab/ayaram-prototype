@@ -1,4 +1,4 @@
-"""v0.1.5 M0 bit-exact compatibility tests.
+"""v0.1.5 M0 / M1 bit-exact compatibility tests.
 
 DoD: ``temperature_K=0.0`` is a strict no-op — every recall / cycle output
 along that path must be ``torch.equal`` to the v0.1 path (max abs diff = 0.0,
@@ -12,9 +12,17 @@ We anchor the bit-exact guarantee by computing the SAME trajectory two ways:
 By construction ``ayaram.core.phase2_fluctuation`` performs zero extra
 arithmetic and draws zero extra RNG samples when ``temperature_K == 0.0``,
 so this anchors the v0.1 commit ``2d0932b`` reference behavior.
+
+M1 adds the ``v15_modern_seed0_cosine.pt`` snapshot test below — the fixture
+was generated from the v0.1 worktree at commit 2d0932b by
+``scripts/generate_v15_cosine_fixture.py`` (CPU-locked) and re-running the
+same demo path on the current branch with ``temperature_K=0.0`` (the default)
+must reproduce it bit-exactly.
 """
 
 from __future__ import annotations
+
+import os
 
 import numpy as np
 import pytest
@@ -168,24 +176,7 @@ def test_v15_modern_demo_path_T0_bit_exact():
         )
 
 
-# ---------- guard: positive T raises NotImplementedError ----------------
-
-
-def test_positive_temperature_raises_not_implemented_in_phase2():
-    net = _small_modern_net(seed=0)
-    bias = torch.randn(LAYER_SIZES[0])
-    cfg = core.CycleConfig(phase2_steps=1)
-    state = core.CycleState.from_network(net)
-    core.phase1_terrain(net, state, bias)
-    with pytest.raises(NotImplementedError, match="M1"):
-        core.phase2_fluctuation(net, state, cfg, temperature_K=300.0)
-
-
-def test_positive_temperature_raises_not_implemented_in_recall():
-    net = _small_modern_net(seed=0)
-    query = net.layers[0].X[:, 0].clone()
-    with pytest.raises(NotImplementedError, match="M1"):
-        net.recall(query, temperature_K=300.0)
+# ---------- guard: negative T rejected at both layers -------------------
 
 
 def test_negative_temperature_rejected():
@@ -201,14 +192,15 @@ def test_negative_temperature_rejected():
 # ---------- modes.compute_thermal_noise_amplitude signature -------------
 
 
-def test_compute_thermal_noise_amplitude_signature_exists():
-    """M0 signature-only: callable exists, raises NotImplementedError, and
-    its docstring names the Sato et al. 2014 reference."""
+def test_compute_thermal_noise_amplitude_docstring_cites_references():
+    """M0 / M1 contract: callable exists, T=0 returns 0.0 exactly, and the
+    docstring still cites the physical sources (Brown 1963 and Sato 2014,
+    even though the Sato alpha correction is deferred to v0.2)."""
     assert callable(modes.compute_thermal_noise_amplitude)
-    with pytest.raises(NotImplementedError, match="M1"):
-        modes.compute_thermal_noise_amplitude(K_u=1.0e5, T=300.0)
+    assert modes.compute_thermal_noise_amplitude(K_u=1.0e5, T=0.0) == 0.0
     doc = modes.compute_thermal_noise_amplitude.__doc__ or ""
     assert "Sato" in doc and "2014" in doc, "docstring must cite Sato et al. 2014"
+    assert "Brown" in doc and "1963" in doc, "docstring must cite Brown 1963"
 
 
 def test_thermal_sweep_demo_importable():
@@ -220,3 +212,35 @@ def test_thermal_sweep_demo_importable():
     assert mod.T_LIST_DEFAULT[0] == 0.0
     for name in ("run_kanji_sweep", "run_attention_sweep", "plot_results", "main"):
         assert callable(getattr(mod, name))
+
+
+# ---------- v15 demo Modern seed=0 cosine fixture (two-stage anchor) ----
+
+
+def test_v15_modern_seed0_matches_v01_fixture():
+    """Re-runs the M4-12 Modern seed=0 demo path with temperature_K=0.0 and
+    asserts ``torch.equal`` against the fixture ``v15_modern_seed0_cosine.pt``,
+    which was produced by running the same script
+    (``scripts/generate_v15_cosine_fixture.py``) from a git worktree at
+    v0.1 commit 2d0932b. Cross-check (CC 解釈, M1): the v0.1-worktree fixture
+    and a re-run on this branch were proven ``torch.equal`` at fixture
+    creation time; this test perpetuates that guarantee."""
+    import numpy as np  # noqa: F401 (used inside script generate())
+    from scripts.generate_v15_cosine_fixture import FIXTURE_PATH, generate
+
+    assert os.path.exists(FIXTURE_PATH), (
+        f"fixture missing: {FIXTURE_PATH}. Regenerate via "
+        "`uv run python scripts/generate_v15_cosine_fixture.py`."
+    )
+    expected = torch.load(FIXTURE_PATH, weights_only=True)
+    actual = generate()
+
+    assert actual["kanji"] == expected["kanji"], "kanji label list drifted"
+    for layer in (0, 1, 2):
+        key = f"layer{layer}_cos"
+        a, b = actual[key], expected[key]
+        assert a.dtype == b.dtype == torch.float64
+        assert torch.equal(a, b), (
+            f"layer {layer}: max abs diff = "
+            f"{(a - b).abs().max().item()} (expected 0.0)"
+        )

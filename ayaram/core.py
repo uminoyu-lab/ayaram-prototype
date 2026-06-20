@@ -157,16 +157,27 @@ def phase2_fluctuation(
     barrier ratio via ``modes.layer_noise_ratio(l)``. See ``modes.sigma_local``
     docstring for the rationale.
 
-    v0.1.5 M0 scaffold: ``temperature_K`` (Kelvin) is the future K_u(T) thermal
-    drive injected on top of ``config.sigma_global``. ``temperature_K == 0.0``
-    (the default) is the **bit-exact** v0.1 compatibility path — no extra
-    arithmetic, no extra RNG draws, identical state evolution. Positive values
-    raise ``NotImplementedError`` until M1 lands ``compute_thermal_noise_amplitude``.
+    v0.1.5 M1: ``temperature_K`` (Kelvin) drives an **additive** independent
+    Gaussian thermal-noise term on top of the v0.1 noise. The two paths are:
+
+        T == 0.0  (default) — bit-exact v0.1 path. No extra arithmetic,
+                              no extra RNG draws, identical state evolution.
+                              Anchored by ``tests/test_v015_compat.py``.
+        T  > 0.0            — the v0.1 expression is computed first
+                              (bit-exact); then an **independent** RNG draw
+                              ``eta_thermal`` is taken from the same
+                              generator, and
+                              ``sigma_global * thermal_amp * sqrt(2 dt) *
+                              eta_thermal`` is added to the state, with
+                              ``thermal_amp = compute_thermal_noise_amplitude(
+                                  modes.K_U_LAYERS[l], temperature_K)``.
+        T  < 0.0            — ``ValueError``.
+
+    The ``if temperature_K > 0.0:`` guard is the M0 CC 解釈 5 invariant
+    (no extra draw, no extra arithmetic on the T=0 path) carried forward.
     """
     if temperature_K < 0.0:
         raise ValueError("temperature_K must be >= 0")
-    if temperature_K > 0.0:
-        raise NotImplementedError("M1 で実装")
     net.enforce_constraints()
     dt = config.dt
     keep = 1.0 - dt
@@ -188,6 +199,19 @@ def phase2_fluctuation(
                 generator=generator,
             )
             state.xi[l] = keep * state.xi[l] + dt * (drift + inter) + sigma_l * sqrt_2dt * eta
+            if temperature_K > 0.0:
+                thermal_amp = modes.compute_thermal_noise_amplitude(
+                    modes.K_U_LAYERS[l], temperature_K
+                )
+                eta_thermal = torch.randn(
+                    state.xi[l].shape,
+                    device=state.xi[l].device,
+                    dtype=state.xi[l].dtype,
+                    generator=generator,
+                )
+                state.xi[l] = state.xi[l] + (
+                    config.sigma_global * thermal_amp * sqrt_2dt * eta_thermal
+                )
 
 
 def phase3_fixation(
