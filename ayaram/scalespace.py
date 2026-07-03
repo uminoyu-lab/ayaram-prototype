@@ -260,8 +260,10 @@ def link_trajectories(
     sigmas,
     min_radius: float = 2.0,
     radius_frac: float = 0.5,
+    max_gap: int = 0,
+    gap_relax: bool = True,
 ) -> list[Trajectory]:
-    """Link per-slice extrema across adjacent σ slices into trajectories.
+    """Link per-slice extrema across σ slices into trajectories.
 
     Rule (依頼書 確定事項):
       * nearest-neighbour, **same polarity only**
@@ -273,7 +275,17 @@ def link_trajectories(
       * alive at σ_max -> right-censored survivor (terminal 'survivor')
 
     Matching is traj->nearest-candidate; candidates won by >1 traj trigger a
-    merge (surviving = larger |R|).  Documented as CC 解釈 in design_decisions.
+    merge (surviving = larger |R|).
+
+    ``max_gap`` (v0.2 M1b, 採用 G1).  With ``max_gap=0`` (default) a trajectory
+    unmatched at the next slice dies immediately — **identical to M1**.  With
+    ``max_gap=1`` a trajectory broken at slice k may reconnect at k+2: a still-
+    dormant trajectory (last seen ``lk``) stays a candidate while ``k-lk <=
+    max_gap+1``, cutting the strict-extrema flicker churn.  ``gap_relax`` scales
+    the gate by the slice-gap (CC 裁量): a blob skipping g slices is matched
+    within ``g · d_max`` (g=1 => unchanged from M1).  A dormant trajectory that
+    reaches σ_max without a last-slice observation is scored 'vanish', not
+    'survivor'.
     """
     sig = np.asarray(sigmas, dtype=np.float64)
     K = len(sig)
@@ -283,30 +295,31 @@ def link_trajectories(
 
     trajs: list[Trajectory] = []
     next_id = 0
-    # active: id -> (traj, last_y, last_x, last_R)
-    active: dict[int, tuple[Trajectory, float, float, float]] = {}
+    # active: id -> (traj, last_y, last_x, last_R, last_k)
+    active: dict[int, tuple[Trajectory, float, float, float, int]] = {}
 
     for k in range(K):
         cur = by_slice[k]
         d_max = max(min_radius, radius_frac * float(sig[k]))
-        # --- propose traj -> nearest same-polarity candidate within gate ---
-        # proposals[cand_idx] = list of (traj_id, dist, last_R)
+        # --- propose traj -> nearest same-polarity candidate within (gap-scaled) gate ---
         proposals: dict[int, list[tuple[int, float, float]]] = {}
         matched_traj: set[int] = set()
-        for tid, (traj, ly, lx, lR) in active.items():
+        for tid, (traj, ly, lx, lR, lk) in active.items():
+            gap = k - lk  # >= 1
+            gate = d_max * (gap if gap_relax else 1)
             best_j, best_d = -1, None
             for j, e in enumerate(cur):
                 if e.polarity != traj.polarity:
                     continue
                 d = float(np.hypot(e.y - ly, e.x - lx))
-                if d <= d_max and (best_d is None or d < best_d):
+                if d <= gate and (best_d is None or d < best_d):
                     best_d, best_j = d, j
             if best_j >= 0:
                 proposals.setdefault(best_j, []).append((tid, best_d, abs(lR)))
                 matched_traj.add(tid)
 
         assigned_cand: set[int] = set()
-        new_active: dict[int, tuple[Trajectory, float, float, float]] = {}
+        new_active: dict[int, tuple[Trajectory, float, float, float, int]] = {}
         for j, claimants in proposals.items():
             e = cur[j]
             # surviving traj = largest |R| (absorbing side); others absorbed
@@ -315,7 +328,7 @@ def link_trajectories(
             winner_id = claimants[0][0]
             wtraj = active[winner_id][0]
             wtraj.points.append((k, e.y, e.x, e.R))
-            new_active[winner_id] = (wtraj, e.y, e.x, e.R)
+            new_active[winner_id] = (wtraj, e.y, e.x, e.R, k)
             assigned_cand.add(j)
             for loser_id, _, _ in claimants[1:]:
                 ltraj = active[loser_id][0]
@@ -324,12 +337,15 @@ def link_trajectories(
                 ltraj.sigma_death = float(sig[k])
                 ltraj.merged_into = winner_id
 
-        # --- unmatched active trajs -> vanish (death at last observed σ) ---
-        for tid, (traj, ly, lx, lR) in active.items():
+        # --- unmatched active trajs: carry dormant within gap grace, else vanish ---
+        for tid, (traj, ly, lx, lR, lk) in active.items():
             if tid in matched_traj:
                 continue
-            traj.terminal = "vanish"
-            traj.sigma_death = float(sig[traj.k_death])
+            if k - lk >= max_gap + 1:
+                traj.terminal = "vanish"
+                traj.sigma_death = float(sig[traj.k_death])
+            else:
+                new_active[tid] = (traj, ly, lx, lR, lk)  # dormant, last_k unchanged
 
         # --- unassigned candidates -> births ---
         for j, e in enumerate(cur):
@@ -343,15 +359,19 @@ def link_trajectories(
                 birth_event=(k > 0),
             )
             trajs.append(tr)
-            new_active[next_id] = (tr, e.y, e.x, e.R)
+            new_active[next_id] = (tr, e.y, e.x, e.R, k)
             next_id += 1
 
         active = new_active
 
-    # --- survivors at σ_max ---
-    for tid, (traj, ly, lx, lR) in active.items():
-        traj.terminal = "survivor"
-        traj.sigma_death = float(sig[-1])
+    # --- end: last-slice observation -> survivor; stale dormant -> vanish ---
+    for tid, (traj, ly, lx, lR, lk) in active.items():
+        if lk == K - 1:
+            traj.terminal = "survivor"
+            traj.sigma_death = float(sig[-1])
+        else:
+            traj.terminal = "vanish"
+            traj.sigma_death = float(sig[traj.k_death])
 
     trajs.sort(key=lambda t: t.id)
     return trajs

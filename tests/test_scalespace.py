@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from ayaram.scalespace import (
+    Extremum,
     build_scale_space,
     detect_extrema,
     gaussian_blur,
@@ -98,3 +99,21 @@ def test_link_single_blob_trajectory() -> None:
     assert len(longest.points) >= 10
     assert all(abs(y - 32) <= 2 and abs(x - 32) <= 2 for _, y, x, _ in longest.points)
     assert longest.terminal in {"vanish", "merge", "survivor"}
+
+
+# --------------------------------------------------------------------------- #
+# M1b: 1-slice gap linking bridges a flicker; max_gap=0 stays M1-identical
+# --------------------------------------------------------------------------- #
+def test_gap_linking_bridges_flicker() -> None:
+    sig = sigma_grid(n_slices=5)
+    # an ink blob present at k=0,1,3,4 but missing (flicker) at k=2
+    ex = [Extremum(k, float(sig[k]), 10, 10, -1.0, "ink") for k in (0, 1, 3, 4)]
+    no_gap = link_trajectories(ex, sig, max_gap=0)
+    gap1 = link_trajectories(ex, sig, max_gap=1)
+    # max_gap=0: the flicker splits it into two trajectories
+    assert len(no_gap) == 2
+    assert {t.terminal for t in no_gap} == {"vanish", "survivor"}
+    # max_gap=1: bridged into a single trajectory that survives to sigma_max
+    assert len(gap1) == 1
+    assert gap1[0].terminal == "survivor"
+    assert [p[0] for p in gap1[0].points] == [0, 1, 3, 4]
