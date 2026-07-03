@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "ayaram-prototype"
-version = "0.1.0"
+version = "0.1.5.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "cairosvg" },

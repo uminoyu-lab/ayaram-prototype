@@ -259,11 +259,17 @@ class HopfieldNetwork(nn.Module):
         config=None,
         return_all_layers: bool = True,
         generator: torch.Generator | None = None,
+        temperature_K: float = 0.0,
     ):
         """Run a single 4-phase cycle with ``query`` injected at layer 0.
 
         Returns a dict ``{layer_idx: state}`` if ``return_all_layers``,
         otherwise the layer-0 readout.
+
+        v0.1.5 M0 scaffold: ``temperature_K`` (Kelvin) is forwarded to
+        ``phase2_fluctuation``. Default ``0.0`` is the bit-exact v0.1
+        compatibility path; positive values raise ``NotImplementedError``
+        until M1.
         """
         return self.recall_from_layer(
             query,
@@ -271,6 +277,7 @@ class HopfieldNetwork(nn.Module):
             config=config,
             return_all_layers=return_all_layers,
             generator=generator,
+            temperature_K=temperature_K,
         )
 
     def recall_from_layer(
@@ -281,11 +288,15 @@ class HopfieldNetwork(nn.Module):
         config=None,
         return_all_layers: bool = True,
         generator: torch.Generator | None = None,
+        temperature_K: float = 0.0,
     ):
         """Run a single 4-phase cycle with ``query`` injected at ``layer_idx``.
 
         Used by the M3 reverse demo (radical -> kanji): set ``layer_idx=1``
         and pass a radical pattern.
+
+        v0.1.5 M0 scaffold: ``temperature_K`` is forwarded to
+        ``phase2_fluctuation`` (see that function's docstring for semantics).
         """
         # Deferred import to avoid the memory <-> core cycle.
         from . import core as _core
@@ -293,7 +304,9 @@ class HopfieldNetwork(nn.Module):
         cfg = config if config is not None else _core.CycleConfig()
         state = _core.CycleState.from_network(self, device=query.device)
         _core.phase1_terrain(self, state, query, layer_idx=layer_idx)
-        _core.phase2_fluctuation(self, state, cfg, generator=generator)
+        _core.phase2_fluctuation(
+            self, state, cfg, generator=generator, temperature_K=temperature_K
+        )
         _core.phase3_fixation(self, state, cfg)
         if return_all_layers:
             return {i: state.xi[i].clone() for i in range(len(self.layer_sizes))}
