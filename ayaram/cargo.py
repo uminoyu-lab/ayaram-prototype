@@ -30,8 +30,11 @@ __all__ = [
     "snapshot_index",
     "blob_at_slice",
     "alive_ink_blobs",
+    "draw_blob_map",
     "build_blob_map",
     "build_blob_maps",
+    "extract_records",
+    "replay_map",
     "build_genealogy",
     "check_genealogy",
     "hopfield_recall",
@@ -81,36 +84,97 @@ def alive_ink_blobs(trajs, sigmas, sigma_s, min_lifetime=2):
     return out
 
 
-def build_blob_map(trajs, sigmas, sigma_s, grid=GRID, src=SRC,
-                   min_lifetime=2, width=None):
-    """32×32 L2-normalised ink-blob map at snapshot σ_s.
-
-    ``width`` (blob σ in grid px) defaults to σ_s/scale (the spec's σ_s/4 on
-    the 128->32 downscale); pass a value to compare the feature-scale variant.
-    Returns a (grid*grid,) float32 vector.
-    """
+def draw_blob_map(blobs_yxw, sigma, grid=GRID, src=SRC, width=None):
+    """Render (y, x, weight) blobs (128-grid coords, weight>=0) into a 32×32
+    L2-normalised map. weight is max-normalised, width defaults to σ/scale."""
     scale = src / grid
     if width is None:
-        width = float(sigma_s) / scale
-    blobs = alive_ink_blobs(trajs, sigmas, sigma_s, min_lifetime)
+        width = float(sigma) / scale
     m = np.zeros((grid, grid), dtype=np.float64)
-    if blobs:
-        maxR = max(abs(R) for _, _, R in blobs) or 1.0
+    if blobs_yxw:
+        maxw = max(abs(w) for _, _, w in blobs_yxw) or 1.0
         gy, gx = np.mgrid[0:grid, 0:grid]
         two_w2 = 2.0 * width * width
-        for (y, x, R) in blobs:
+        for (y, x, w) in blobs_yxw:
             cy, cx = y / scale, x / scale
-            m += (abs(R) / maxR) * np.exp(-((gy - cy) ** 2 + (gx - cx) ** 2) / two_w2)
+            m += (abs(w) / maxw) * np.exp(-((gy - cy) ** 2 + (gx - cx) ** 2) / two_w2)
     n = np.linalg.norm(m)
     if n > 0:
         m /= n
     return m.reshape(-1).astype(np.float32)
 
 
+def build_blob_map(trajs, sigmas, sigma_s, grid=GRID, src=SRC,
+                   min_lifetime=2, width=None):
+    """32×32 L2-normalised ink-blob map at snapshot σ_s (direct-slice)."""
+    blobs = alive_ink_blobs(trajs, sigmas, sigma_s, min_lifetime)
+    return draw_blob_map([(y, x, abs(R)) for (y, x, R) in blobs], sigma_s,
+                         grid, src, width)
+
+
 def build_blob_maps(per_char_trajs, sigmas, chars, sigma_s, **kw):
     """(N, grid*grid) stack of blob maps for the given σ_s."""
     return np.stack([build_blob_map(per_char_trajs[c], sigmas, sigma_s, **kw)
                      for c in chars], axis=0)
+
+
+# --------------------------------------------------------------------------- #
+# M3 reverse replay: full (position+intensity series) vs tree-only (fixed pos)
+# --------------------------------------------------------------------------- #
+def extract_records(trajs, sigmas, min_lifetime=2, survivor_k=24):
+    """Serialisable per-ink-blob records for reverse replay.
+
+    Each record: {sigma_birth, sigma_death, series[(k,y,x,R)], pos_fixed(y,x),
+    amp_fixed, ephemeral}.  ``pos_fixed``/``amp_fixed`` = position/|R| at death
+    (the M3-2 "tree-only" init), except survivors, which use the σ=survivor_k
+    slice (pos_at_death would sit at σ_max, outside the replay range).
+    """
+    recs = []
+    for t in trajs:
+        if t.polarity != "ink" or len(t.points) < min_lifetime:
+            continue
+        series = [(int(k), int(y), int(x), float(R)) for (k, y, x, R) in t.points]
+        if t.terminal == "survivor":
+            y, x, R = blob_at_slice(t, survivor_k)
+            pos, amp = (int(y), int(x)), abs(float(R))
+        else:
+            _, y, x, R = t.points[-1]
+            pos, amp = (int(y), int(x)), abs(float(R))
+        recs.append({"sigma_birth": float(t.sigma_birth), "sigma_death": float(t.sigma_death),
+                     "series": series, "pos_fixed": pos, "amp_fixed": amp,
+                     "ephemeral": bool(len(t.points) < 2)})
+    return recs
+
+
+def _series_point(series, k_s):
+    exact = [p for p in series if p[0] == k_s]
+    if exact:
+        return exact[0]
+    before = [p for p in series if p[0] <= k_s]
+    return before[-1] if before else series[0]
+
+
+def replay_map(records, sigmas, sigma, mode="full", grid=GRID, src=SRC, width=None):
+    """Reconstruct the 32×32 map at ``sigma`` from records (σ降順 replay).
+
+    mode='full' : position & |R| from the stored series at σ (== direct slice;
+                  the M3-1 gate).
+    mode='tree' : fixed pos_fixed & amp_fixed for every alive blob — the
+                  drift-discarding "tree-only" reconstruction (M3-2).
+    A blob is alive iff σ_birth ≤ σ < σ_death.
+    """
+    k_s = snapshot_index(sigmas, sigma)
+    blobs = []
+    for r in records:
+        if not (r["sigma_birth"] <= sigma < r["sigma_death"]):
+            continue
+        if mode == "full":
+            _, y, x, R = _series_point(r["series"], k_s)
+            blobs.append((y, x, abs(R)))
+        else:  # tree
+            y, x = r["pos_fixed"]
+            blobs.append((y, x, r["amp_fixed"]))
+    return draw_blob_map(blobs, sigma, grid, src, width)
 
 
 # --------------------------------------------------------------------------- #

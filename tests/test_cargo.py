@@ -12,10 +12,16 @@ from ayaram.cargo import (
     build_blob_map,
     build_genealogy,
     check_genealogy,
+    extract_records,
     hopfield_recall,
     nearest_pattern,
+    replay_map,
 )
 from ayaram.scalespace import Trajectory, sigma_grid
+
+
+def _cos(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-12))
 
 
 def _traj(id, pol, pts, birth, death, terminal, merged_into=None, sigma_merge=None):
@@ -83,3 +89,32 @@ def test_clean_recall_roundtrip() -> None:
     for i in range(6):
         rec = hopfield_recall(P, P[i], beta=16.0)
         assert nearest_pattern(P, rec) == i
+
+
+# --------------------------------------------------------------------------- #
+# M3: replay determinism + reduced full-replay gate (== direct slice)
+# --------------------------------------------------------------------------- #
+def test_replay_deterministic() -> None:
+    sig = sigma_grid()
+    t = _traj(0, "ink", [(16, 40, 40, -1.0), (20, 44, 44, -0.7)], 1.5, 8.0, "vanish")
+    recs = extract_records([t], sig, min_lifetime=2)
+    a = replay_map(recs, sig, 2.0, mode="tree")
+    b = replay_map(recs, sig, 2.0, mode="tree")
+    assert np.array_equal(a, b)
+
+
+def test_full_replay_matches_direct_gate() -> None:
+    """M3-1 reduced gate: full replay reproduces the direct-slice map (>=0.999)."""
+    sig = sigma_grid()
+    trajs = [
+        _traj(0, "ink", [(8, 20, 20, -1.0), (12, 22, 24, -0.9), (16, 25, 28, -0.7)], 1.0, 8.0, "vanish"),
+        _traj(1, "ink", [(4, 60, 60, -0.8), (8, 58, 62, -0.6)], 0.7, 2.0, "vanish"),
+    ]
+    recs = extract_records(trajs, sig, min_lifetime=2)
+    for k in (4, 8, 12, 16):
+        s = float(sig[k])
+        direct = build_blob_map(trajs, sig, s, min_lifetime=2)
+        full = replay_map(recs, sig, s, mode="full")
+        if np.linalg.norm(direct) < 1e-9 and np.linalg.norm(full) < 1e-9:
+            continue
+        assert _cos(direct, full) >= 0.999
