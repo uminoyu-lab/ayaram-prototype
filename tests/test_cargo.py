@@ -12,6 +12,7 @@ from ayaram.cargo import (
     build_blob_map,
     build_genealogy,
     check_genealogy,
+    confusion_matrix,
     extract_records,
     hopfield_recall,
     nearest_pattern,
@@ -118,3 +119,28 @@ def test_full_replay_matches_direct_gate() -> None:
         if np.linalg.norm(direct) < 1e-9 and np.linalg.norm(full) < 1e-9:
             continue
         assert _cos(direct, full) >= 0.999
+
+
+# --------------------------------------------------------------------------- #
+# M4: confusion matrix determinism / row-stochastic / β sharpening
+# --------------------------------------------------------------------------- #
+def test_confusion_matrix_deterministic_stochastic() -> None:
+    rng = np.random.default_rng(1)
+    P = rng.standard_normal((5, 12))
+    W1 = confusion_matrix(P, P, beta=8.0)
+    W2 = confusion_matrix(P, P, beta=8.0)
+    assert np.array_equal(W1, W2)                       # deterministic
+    assert np.allclose(W1.sum(axis=1), 1.0)             # row-stochastic
+    # higher β sharpens self-recall weight (diagonal grows)
+    lo = np.diag(confusion_matrix(P, P, beta=1.0)).mean()
+    hi = np.diag(confusion_matrix(P, P, beta=16.0)).mean()
+    assert hi > lo
+
+
+def test_reproducibility_gate_reduced() -> None:
+    """β=16 clean self-recall is 100% on distinct blob-map-like patterns."""
+    rng = np.random.default_rng(2)
+    P = np.abs(rng.standard_normal((8, 64)))            # non-negative, blob-map-like
+    P /= np.linalg.norm(P, axis=1, keepdims=True)
+    acc = np.mean([nearest_pattern(P, hopfield_recall(P, P[i], 16.0)) == i for i in range(8)])
+    assert acc == 1.0

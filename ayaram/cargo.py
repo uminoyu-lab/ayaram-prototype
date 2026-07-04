@@ -39,6 +39,7 @@ __all__ = [
     "check_genealogy",
     "hopfield_recall",
     "nearest_pattern",
+    "confusion_matrix",
 ]
 
 SNAP_LOG2: tuple[float, ...] = (1.0, 1.5, 2.0)   # log2 σ_s -> σ_s = 2, 2.83, 4
@@ -267,3 +268,18 @@ def nearest_pattern(patterns, vec):
     pn = P / (np.linalg.norm(P, axis=1, keepdims=True) + 1e-12)
     vv = v / (np.linalg.norm(v) + 1e-12)
     return int(np.argmax(pn @ vv))
+
+
+def confusion_matrix(Q, P, beta):
+    """W[i,j] = softmax_j(beta * <Q_i, P_j>) (M4 recall-confusion structure).
+
+    ``Q``/``P`` are row-stacked; rows are L2-normalised internally so the logits
+    are beta*cosine.  Returns an (nq, np) row-stochastic matrix.
+    """
+    Q = np.asarray(Q, float); P = np.asarray(P, float)
+    Qn = Q / (np.linalg.norm(Q, axis=1, keepdims=True) + 1e-12)
+    Pn = P / (np.linalg.norm(P, axis=1, keepdims=True) + 1e-12)
+    logits = beta * (Qn @ Pn.T)
+    logits -= logits.max(axis=1, keepdims=True)
+    e = np.exp(logits)
+    return e / e.sum(axis=1, keepdims=True)
