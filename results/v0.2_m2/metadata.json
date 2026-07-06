@@ -1,0 +1,403 @@
+{
+  "milestone": "v0.2-M2",
+  "device": "cpu",
+  "runtime_sec": 11.53,
+  "beta": 16.0,
+  "recall_steps": 3,
+  "snap_log2": [
+    1.0,
+    1.5,
+    2.0
+  ],
+  "snap_sigmas": [
+    2.0,
+    2.8284271247461903,
+    4.0
+  ],
+  "grid": 32,
+  "A2_gate": {
+    "log2_1.0": {
+      "clean_recall": "24/24",
+      "pass": true
+    },
+    "log2_1.5": {
+      "clean_recall": "24/24",
+      "pass": true
+    },
+    "log2_2.0": {
+      "clean_recall": "24/24",
+      "pass": true
+    }
+  },
+  "A3": {
+    "log2_1.0": {
+      "mean_off_cosine": 0.15266861021518707,
+      "max_off_cosine": 0.624321699142456,
+      "noisy_recall": {
+        "eta_1.0": 1.0,
+        "eta_2.0": 1.0,
+        "eta_3.0": 1.0,
+        "eta_5.0": 0.975
+      },
+      "noisy_recall_avg": 0.99375
+    },
+    "log2_1.5": {
+      "mean_off_cosine": 0.2349569946527481,
+      "max_off_cosine": 0.7072216272354126,
+      "noisy_recall": {
+        "eta_1.0": 1.0,
+        "eta_2.0": 1.0,
+        "eta_3.0": 1.0,
+        "eta_5.0": 0.8666666666666667
+      },
+      "noisy_recall_avg": 0.9666666666666667
+    },
+    "log2_2.0": {
+      "mean_off_cosine": 0.3758898079395294,
+      "max_off_cosine": 0.9174742698669434,
+      "noisy_recall": {
+        "eta_1.0": 1.0,
+        "eta_2.0": 1.0,
+        "eta_3.0": 0.8,
+        "eta_5.0": 0.18333333333333332
+      },
+      "noisy_recall_avg": 0.7458333333333332
+    },
+    "sigma_star_log2": 1.0,
+    "sigma_star": 2.0
+  },
+  "sigma_star": 2.0,
+  "A4_genealogy_all_ok": true,
+  "A4_counts": {
+    "木": {
+      "nodes": 228,
+      "merge": 118,
+      "vanish": 104,
+      "survivor": 6,
+      "edges": 118,
+      "roots": 110
+    },
+    "日": {
+      "nodes": 98,
+      "merge": 58,
+      "vanish": 36,
+      "survivor": 4,
+      "edges": 58,
+      "roots": 40
+    },
+    "月": {
+      "nodes": 175,
+      "merge": 97,
+      "vanish": 70,
+      "survivor": 8,
+      "edges": 97,
+      "roots": 78
+    },
+    "火": {
+      "nodes": 415,
+      "merge": 302,
+      "vanish": 109,
+      "survivor": 4,
+      "edges": 302,
+      "roots": 113
+    },
+    "林": {
+      "nodes": 379,
+      "merge": 232,
+      "vanish": 135,
+      "survivor": 12,
+      "edges": 232,
+      "roots": 147
+    },
+    "明": {
+      "nodes": 240,
+      "merge": 117,
+      "vanish": 112,
+      "survivor": 11,
+      "edges": 117,
+      "roots": 123
+    },
+    "炎": {
+      "nodes": 618,
+      "merge": 425,
+      "vanish": 185,
+      "survivor": 8,
+      "edges": 425,
+      "roots": 193
+    },
+    "晶": {
+      "nodes": 175,
+      "merge": 74,
+      "vanish": 98,
+      "survivor": 3,
+      "edges": 74,
+      "roots": 101
+    },
+    "森": {
+      "nodes": 403,
+      "merge": 242,
+      "vanish": 154,
+      "survivor": 7,
+      "edges": 242,
+      "roots": 161
+    },
+    "水": {
+      "nodes": 334,
+      "merge": 164,
+      "vanish": 163,
+      "survivor": 7,
+      "edges": 164,
+      "roots": 170
+    },
+    "川": {
+      "nodes": 165,
+      "merge": 101,
+      "vanish": 53,
+      "survivor": 11,
+      "edges": 101,
+      "roots": 64
+    },
+    "山": {
+      "nodes": 80,
+      "merge": 39,
+      "vanish": 34,
+      "survivor": 7,
+      "edges": 39,
+      "roots": 41
+    },
+    "一": {
+      "nodes": 17,
+      "merge": 11,
+      "vanish": 6,
+      "survivor": 0,
+      "edges": 11,
+      "roots": 6
+    },
+    "十": {
+      "nodes": 26,
+      "merge": 9,
+      "vanish": 13,
+      "survivor": 4,
+      "edges": 9,
+      "roots": 17
+    },
+    "口": {
+      "nodes": 72,
+      "merge": 37,
+      "vanish": 31,
+      "survivor": 4,
+      "edges": 37,
+      "roots": 35
+    },
+    "田": {
+      "nodes": 92,
+      "merge": 50,
+      "vanish": 41,
+      "survivor": 1,
+      "edges": 50,
+      "roots": 42
+    },
+    "回": {
+      "nodes": 183,
+      "merge": 100,
+      "vanish": 79,
+      "survivor": 4,
+      "edges": 100,
+      "roots": 83
+    },
+    "国": {
+      "nodes": 198,
+      "merge": 103,
+      "vanish": 89,
+      "survivor": 6,
+      "edges": 103,
+      "roots": 95
+    },
+    "岩": {
+      "nodes": 161,
+      "merge": 77,
+      "vanish": 78,
+      "survivor": 6,
+      "edges": 77,
+      "roots": 84
+    },
+    "品": {
+      "nodes": 124,
+      "merge": 46,
+      "vanish": 71,
+      "survivor": 7,
+      "edges": 46,
+      "roots": 78
+    },
+    "語": {
+      "nodes": 194,
+      "merge": 80,
+      "vanish": 108,
+      "survivor": 6,
+      "edges": 80,
+      "roots": 114
+    },
+    "銀": {
+      "nodes": 469,
+      "merge": 274,
+      "vanish": 185,
+      "survivor": 10,
+      "edges": 274,
+      "roots": 195
+    },
+    "樹": {
+      "nodes": 397,
+      "merge": 203,
+      "vanish": 185,
+      "survivor": 9,
+      "edges": 203,
+      "roots": 194
+    },
+    "鬱": {
+      "nodes": 651,
+      "merge": 371,
+      "vanish": 271,
+      "survivor": 9,
+      "edges": 371,
+      "roots": 280
+    }
+  },
+  "B1": {
+    "matrix_query_by_memory": [
+      [
+        1.0,
+        1.0,
+        0.9166666666666666
+      ],
+      [
+        1.0,
+        1.0,
+        1.0
+      ],
+      [
+        0.9166666666666666,
+        0.9583333333333334,
+        1.0
+      ]
+    ],
+    "chance": 0.041666666666666664,
+    "offdiag_over_diag": [
+      [
+        0.9999999999989999,
+        0.9999999999989999,
+        0.9166666666657499
+      ],
+      [
+        0.9999999999989999,
+        0.9999999999989999,
+        0.9999999999989999
+      ],
+      [
+        0.9166666666657499,
+        0.9583333333323749,
+        0.9999999999989999
+      ]
+    ],
+    "snap_log2": [
+      1.0,
+      1.5,
+      2.0
+    ],
+    "note": "rows=query σ_s', cols=memory σ_s; diag=same-scale"
+  },
+  "B2": {
+    "shared_mean_cos": 0.13099772567776116,
+    "nonshared_mean_cos": 0.1535681681101942,
+    "contrast_pairs": {
+      "日-月": 0.24293528497219086,
+      "田-回": 0.44509100914001465,
+      "田-国": 0.3594589829444885
+    },
+    "contrast_mean_cos": 0.349161759018898,
+    "mann_whitney": {
+      "U": 1233.0,
+      "z": -0.8654616020408945,
+      "p_one_sided_a_gt_b": 0.8066072587797914,
+      "median_a": 0.13425102829933167,
+      "median_b": 0.15036913752555847
+    },
+    "form_not_parts_confirmed": true,
+    "mixed_query": {
+      "木+林": {
+        "top": "木",
+        "top_cos": 0.77,
+        "second": "林",
+        "second_cos": 0.735
+      },
+      "木+森": {
+        "top": "木",
+        "top_cos": 0.782,
+        "second": "森",
+        "second_cos": 0.729
+      },
+      "林+森": {
+        "top": "林",
+        "top_cos": 0.76,
+        "second": "森",
+        "second_cos": 0.758
+      },
+      "火+炎": {
+        "top": "炎",
+        "top_cos": 0.823,
+        "second": "火",
+        "second_cos": 0.82
+      },
+      "日+月": {
+        "top": "月",
+        "top_cos": 0.791,
+        "second": "日",
+        "second_cos": 0.785
+      },
+      "田+回": {
+        "top": "田",
+        "top_cos": 0.855,
+        "second": "回",
+        "second_cos": 0.845
+      },
+      "田+国": {
+        "top": "田",
+        "top_cos": 0.838,
+        "second": "国",
+        "second_cos": 0.81
+      }
+    }
+  },
+  "B3": {
+    "blob_only_ring_margin": 0.6061848402023315,
+    "w": {
+      "0.1": {
+        "ring_margin": 0.6099229223540064,
+        "improvement": 0.0037380821516748153
+      },
+      "0.3": {
+        "ring_margin": 0.6072308215243922,
+        "improvement": 0.001045981322060685
+      },
+      "1.0": {
+        "ring_margin": 0.3960423778317364,
+        "improvement": -0.21014246237059514
+      }
+    }
+  },
+  "noise": {
+    "levels": [
+      1.0,
+      2.0,
+      3.0,
+      5.0
+    ],
+    "repeats": 5,
+    "seed": 20260703
+  },
+  "env": {
+    "python": "3.12.13",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "numpy": "2.4.6"
+  },
+  "fc_note": "f_c=(holes,has_hole,dissolution_median_log2); z-scored, unit-normed, w-scaled"
+}

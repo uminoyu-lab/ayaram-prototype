@@ -1,0 +1,309 @@
+{
+  "version": "v0.2-M0",
+  "n_glyphs": 24,
+  "chars": [
+    "木",
+    "日",
+    "月",
+    "火",
+    "林",
+    "明",
+    "炎",
+    "晶",
+    "森",
+    "水",
+    "川",
+    "山",
+    "一",
+    "十",
+    "口",
+    "田",
+    "回",
+    "国",
+    "岩",
+    "品",
+    "語",
+    "銀",
+    "樹",
+    "鬱"
+  ],
+  "chars_existing": [
+    "木",
+    "日",
+    "月",
+    "火",
+    "林",
+    "明",
+    "炎",
+    "晶",
+    "森",
+    "水",
+    "川",
+    "山"
+  ],
+  "chars_new": [
+    "一",
+    "十",
+    "口",
+    "田",
+    "回",
+    "国",
+    "岩",
+    "品",
+    "語",
+    "銀",
+    "樹",
+    "鬱"
+  ],
+  "codepoints": [
+    "U+6728",
+    "U+65E5",
+    "U+6708",
+    "U+706B",
+    "U+6797",
+    "U+660E",
+    "U+708E",
+    "U+6676",
+    "U+68EE",
+    "U+6C34",
+    "U+5DDD",
+    "U+5C71",
+    "U+4E00",
+    "U+5341",
+    "U+53E3",
+    "U+7530",
+    "U+56DE",
+    "U+56FD",
+    "U+5CA9",
+    "U+54C1",
+    "U+8A9E",
+    "U+9280",
+    "U+6A39",
+    "U+9B31"
+  ],
+  "size": 128,
+  "supersample": 512,
+  "downscale": "PIL.Image.BOX (area averaging)",
+  "point_size": 384,
+  "ink_value": 1.0,
+  "background_value": 0.0,
+  "dtype": "float32",
+  "value_range": [
+    0.0,
+    1.0
+  ],
+  "font_path": "C:\\Windows\\Fonts\\NotoSansJP-VF.ttf",
+  "font_candidates": [
+    "C:\\Windows\\Fonts\\NotoSansJP-VF.ttf",
+    "C:\\Windows\\Fonts\\YuGothM.ttc",
+    "C:\\Windows\\Fonts\\meiryo.ttc",
+    "C:\\Windows\\Fonts\\msgothic.ttc"
+  ],
+  "notdef_codepoint": "U+E000",
+  "notdef_ink_rate": 0.1609,
+  "env": {
+    "python": "3.12.13",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "numpy": "2.4.6",
+    "pillow": "12.2.0"
+  },
+  "qc": {
+    "missing_glyphs": [],
+    "ink_out_of_1_50pct": [],
+    "rows": [
+      {
+        "char": "木",
+        "codepoint": "U+6728",
+        "ink_rate": 0.0512,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "日",
+        "codepoint": "U+65E5",
+        "ink_rate": 0.0575,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "月",
+        "codepoint": "U+6708",
+        "ink_rate": 0.0596,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "火",
+        "codepoint": "U+706B",
+        "ink_rate": 0.0388,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "林",
+        "codepoint": "U+6797",
+        "ink_rate": 0.0739,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "明",
+        "codepoint": "U+660E",
+        "ink_rate": 0.0839,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "炎",
+        "codepoint": "U+708E",
+        "ink_rate": 0.0562,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "晶",
+        "codepoint": "U+6676",
+        "ink_rate": 0.0966,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "森",
+        "codepoint": "U+68EE",
+        "ink_rate": 0.0862,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "水",
+        "codepoint": "U+6C34",
+        "ink_rate": 0.0527,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "川",
+        "codepoint": "U+5DDD",
+        "ink_rate": 0.0422,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "山",
+        "codepoint": "U+5C71",
+        "ink_rate": 0.0486,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "一",
+        "codepoint": "U+4E00",
+        "ink_rate": 0.0211,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "十",
+        "codepoint": "U+5341",
+        "ink_rate": 0.0308,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "口",
+        "codepoint": "U+53E3",
+        "ink_rate": 0.0493,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "田",
+        "codepoint": "U+7530",
+        "ink_rate": 0.0787,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "回",
+        "codepoint": "U+56DE",
+        "ink_rate": 0.0797,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "国",
+        "codepoint": "U+56FD",
+        "ink_rate": 0.0938,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "岩",
+        "codepoint": "U+5CA9",
+        "ink_rate": 0.0736,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "品",
+        "codepoint": "U+54C1",
+        "ink_rate": 0.0758,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "語",
+        "codepoint": "U+8A9E",
+        "ink_rate": 0.0939,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "銀",
+        "codepoint": "U+9280",
+        "ink_rate": 0.0971,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "樹",
+        "codepoint": "U+6A39",
+        "ink_rate": 0.0978,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      },
+      {
+        "char": "鬱",
+        "codepoint": "U+9B31",
+        "ink_rate": 0.1302,
+        "empty": false,
+        "looks_notdef": false,
+        "ink_in_1_50pct": true
+      }
+    ],
+    "pass": true
+  }
+}
