@@ -1,0 +1,40 @@
+{
+  "checks": {
+    "windowed_silverman_p": 0.295,
+    "b1_offdiag_min": 0.9166666666666666,
+    "m32_fidelity_mean": 0.525851368698667,
+    "c1_rho": -0.8633970960424557,
+    "c2_rho": 0.9999999999999999
+  },
+  "asserts": [
+    {
+      "name": "c1_rho == -0.863 ± 0.005",
+      "pass": true,
+      "value": -0.8633970960424557
+    },
+    {
+      "name": "c2_rho == 1.000",
+      "pass": true,
+      "value": 0.9999999999999999
+    },
+    {
+      "name": "b1_offdiag_min == 0.917 ± 0.005",
+      "pass": true,
+      "value": 0.9166666666666666
+    },
+    {
+      "name": "m32_fidelity_mean == 0.526 ± 0.005",
+      "pass": true,
+      "value": 0.525851368698667
+    },
+    {
+      "name": "windowed_silverman_p > 0.05",
+      "pass": true,
+      "value": 0.295
+    }
+  ],
+  "all_pass": true,
+  "runtime_sec": 15.18,
+  "n_figures": 13,
+  "linking": "official gap=1"
+}
