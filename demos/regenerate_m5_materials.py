@@ -76,11 +76,17 @@ def _set_cjk_font():
             return
 
 
-def main():
-    os.makedirs(OUT, exist_ok=True)
-    _set_cjk_font()
+def compute_checks(figures=True):
+    """Re-run the M1–M4 pipeline; return the 5 re-proof check values.
+
+    When ``figures`` is True, also regenerate all 13 arc figures + README +
+    regen_report.json.  When False (regression mode) only the assert-feeding
+    computations run (no plotting, no control sweep) — same numbers, faster.
+    """
+    if figures:
+        os.makedirs(OUT, exist_ok=True)
+        _set_cjk_font()
     prop = _cjk_prop()
-    t0 = time.time()
 
     dat = np.load(GLYPHS, allow_pickle=False)
     glyphs = dat["glyphs"]
@@ -96,73 +102,32 @@ def main():
         R = normalized_log_response(ss, sig)
         ex = detect_extrema(R, sig, 0.05, 3)
         per[ch] = link_trajectories(ex, sig, max_gap=MAX_GAP)
-        ss_np[ch] = ss.cpu().numpy()
+        if figures:
+            ss_np[ch] = ss.cpu().numpy()
     snaps = snapshot_sigmas(sig)
     maps_by_sig = {s: build_blob_maps(per, sig, chars, s) for s in snaps}
     P2 = maps_by_sig[2.0]
 
     checks = {}
 
-    # ===================== §4 cargo contact sheet (13) =====================
-    _fig_cargo_sheet(chars, maps_by_sig, snaps, prop, os.path.join(OUT, "m5_s4_cargo_contactsheet.png"))
-
-    # ===================== §5 meltdown filmstrips + death hist + holes =====
-    _filmstrip_L(ss_np["鬱"], sig, OCT_KS, "鬱  熱溶解 (heat dissolution)",
-                 os.path.join(OUT, "m5_s5_meltdown_utsu.png"), prop)
-    _filmstrip_L(ss_np["森"], sig, OCT_KS, "森  熱溶解 (heat dissolution)",
-                 os.path.join(OUT, "m5_s5_meltdown_mori.png"), prop)
-    # σ_death histogram: pre-window (all ink) vs post-window [1,16]
-    pre = np.concatenate([deaths(per[c], "ink") for c in chars]); pre = pre[pre > 0]
+    # ---- assert v: windowed Silverman (σ_death post-window [1,16]) ----
     post = np.concatenate([partition_deaths(per[c], "ink")[0] for c in chars]); post = post[post > 0]
-    _fig_death_hist(np.log2(pre), np.log2(post), log_sig, os.path.join(OUT, "m5_s5_death_hist.png"))
-    # windowed Silverman (assert v)
-    sv = silverman_multimodality(np.log2(post))
-    checks["windowed_silverman_p"] = sv["silverman_p_value"]
-    # hole dissolution (ring 10)
-    ring = list("口日月田回国品語銀明")
-    hole_rows = {}
-    for ch in ring:
-        i = idx[ch]
-        diss = [h["dissolution_sigma"] for h in dissolution_sigma(ss_np[ch], glyphs[i], sig)
-                if h["dissolution_sigma"]]
-        hole_rows[ch] = [float(np.log2(x)) for x in diss]
-    _fig_hole_dissolution(hole_rows, prop, os.path.join(OUT, "m5_s5_hole_dissolution.png"))
+    checks["windowed_silverman_p"] = silverman_multimodality(np.log2(post))["silverman_p_value"]
 
-    # ===================== §6 B1 matrix + B2 groups =====================
+    # ---- assert iii: B1 off-diagonal min ----
     B1 = np.zeros((3, 3))
     for qi, sq in enumerate(snaps):
         for mi, sm in enumerate(snaps):
             B1[qi, mi] = recall_acc(maps_by_sig[sq], maps_by_sig[sm], BETA)
     checks["b1_offdiag_min"] = float(B1[~np.eye(3, dtype=bool)].min())
-    _fig_b1(B1, snaps, os.path.join(OUT, "m5_s6_b1_matrix.png"))
-    Pn = P2 / (np.linalg.norm(P2, axis=1, keepdims=True) + 1e-12)
-    cosf = lambda a, b: float(Pn[idx[a]] @ Pn[idx[b]])
-    shared = [cosf(a, b) for a, b in SHARED_PAIRS]
-    sset = {frozenset(p) for p in SHARED_PAIRS}
-    allp = [(chars[i], chars[j]) for i in range(N) for j in range(i + 1, N)]
-    nonshared = [cosf(a, b) for a, b in allp if frozenset((a, b)) not in sset]
-    contrast = {f"{a}-{b}": cosf(a, b) for a, b in CONTRAST_PAIRS}
-    _fig_b2(shared, nonshared, contrast, os.path.join(OUT, "m5_s6_b2_groups.png"))
 
-    # ===================== §7 reverse replay + fidelity + unreturnable + ephemeral
+    # ---- assert iv: M3-2 tree-replay fidelity mean ----
     recs = {c: extract_records(per[c], sig, min_lifetime=2) for c in chars}
-    _filmstrip_replay("森", recs["森"], sig, REPLAY_KS,
-                      os.path.join(OUT, "m5_s7_replay_mori.png"), prop)
     fid_mat = np.vstack([_tree_fidelity(per[c], recs[c], sig) for c in chars])
     mean_fid = np.nanmean(fid_mat, axis=0)
     checks["m32_fidelity_mean"] = float(np.nanmean(mean_fid))
-    _fig_fidelity(log_sig[KRANGE], fid_mat, mean_fid, os.path.join(OUT, "m5_s7_fidelity.png"))
-    _fig_unreturnable(["品", "回"], per, recs, sig, idx, P2, prop,
-                      os.path.join(OUT, "m5_s7_unreturnable.png"))
-    ephem = np.array([t.sigma_death for c in chars for t in per[c]
-                      if t.polarity == "ink" and len(t.points) < 2])
-    _fig_ephemeral(np.log2(ephem[ephem > 0]), os.path.join(OUT, "m5_s7_ephemeral_dist.png"))
 
-    # ===================== §8 awakening + correspondence + control =====================
-    acc_b = [recall_acc(P2, P2, b) for b in BETA_GRID]
-    _fig_awakening([np.log2(b) for b in BETA_GRID], acc_b, os.path.join(OUT, "m5_s8_awakening.png"))
-
-    # c1 / c2 (the balance beam)
+    # ---- assert i/ii: the balance beam c1 σ*(β) / c2 β_c(σ) ----
     Wb = {b: conf_matrix(P2, P2, b) for b in BETA_GRID}
     Bq = {k: np.stack([build_blob_map(per[c], sig, sig[k], min_lifetime=2) for c in chars])
           for k in SIGMA_KS}
@@ -174,17 +139,48 @@ def main():
         D_grid.append(ds); sstar.append(cont_argmin(log2s, ds))
     c1_rho, _ = spearman(BETA_GRID, sstar)
     betas_l2 = [float(np.log2(b)) for b in BETA_GRID]
-    beta_c = []
-    for k in SIGMA_KS:
-        accs = [recall_acc(Bq[k], P2, b) for b in BETA_GRID]
-        beta_c.append(interp_threshold(betas_l2, accs, IDENT_RATE))
+    beta_c = [interp_threshold(betas_l2, [recall_acc(Bq[k], P2, b) for b in BETA_GRID], IDENT_RATE)
+              for k in SIGMA_KS]
     valid = [(np.log2(sig[k]), bc) for k, bc in zip(SIGMA_KS, beta_c) if bc is not None]
     c2_rho, _ = spearman([v[0] for v in valid], [v[1] for v in valid])
     checks["c1_rho"] = float(c1_rho); checks["c2_rho"] = float(c2_rho)
+
+    if not figures:
+        return checks
+
+    # ============ figures (integration demo) ============
+    _fig_cargo_sheet(chars, maps_by_sig, snaps, prop, os.path.join(OUT, "m5_s4_cargo_contactsheet.png"))
+    _filmstrip_L(ss_np["鬱"], sig, OCT_KS, "鬱  熱溶解 (heat dissolution)",
+                 os.path.join(OUT, "m5_s5_meltdown_utsu.png"), prop)
+    _filmstrip_L(ss_np["森"], sig, OCT_KS, "森  熱溶解 (heat dissolution)",
+                 os.path.join(OUT, "m5_s5_meltdown_mori.png"), prop)
+    pre = np.concatenate([deaths(per[c], "ink") for c in chars]); pre = pre[pre > 0]
+    _fig_death_hist(np.log2(pre), np.log2(post), log_sig, os.path.join(OUT, "m5_s5_death_hist.png"))
+    hole_rows = {}
+    for ch in list("口日月田回国品語銀明"):
+        diss = [h["dissolution_sigma"] for h in dissolution_sigma(ss_np[ch], glyphs[idx[ch]], sig)
+                if h["dissolution_sigma"]]
+        hole_rows[ch] = [float(np.log2(x)) for x in diss]
+    _fig_hole_dissolution(hole_rows, prop, os.path.join(OUT, "m5_s5_hole_dissolution.png"))
+    _fig_b1(B1, snaps, os.path.join(OUT, "m5_s6_b1_matrix.png"))
+    Pn = P2 / (np.linalg.norm(P2, axis=1, keepdims=True) + 1e-12)
+    cosf = lambda a, b: float(Pn[idx[a]] @ Pn[idx[b]])
+    shared = [cosf(a, b) for a, b in SHARED_PAIRS]
+    sset = {frozenset(p) for p in SHARED_PAIRS}
+    allp = [(chars[i], chars[j]) for i in range(N) for j in range(i + 1, N)]
+    nonshared = [cosf(a, b) for a, b in allp if frozenset((a, b)) not in sset]
+    contrast = {f"{a}-{b}": cosf(a, b) for a, b in CONTRAST_PAIRS}
+    _fig_b2(shared, nonshared, contrast, os.path.join(OUT, "m5_s6_b2_groups.png"))
+    _filmstrip_replay("森", recs["森"], sig, REPLAY_KS, os.path.join(OUT, "m5_s7_replay_mori.png"), prop)
+    _fig_fidelity(log_sig[KRANGE], fid_mat, mean_fid, os.path.join(OUT, "m5_s7_fidelity.png"))
+    _fig_unreturnable(["品", "回"], per, recs, sig, idx, P2, prop, os.path.join(OUT, "m5_s7_unreturnable.png"))
+    ephem = np.array([t.sigma_death for c in chars for t in per[c]
+                      if t.polarity == "ink" and len(t.points) < 2])
+    _fig_ephemeral(np.log2(ephem[ephem > 0]), os.path.join(OUT, "m5_s7_ephemeral_dist.png"))
+    _fig_awakening([np.log2(b) for b in BETA_GRID], [recall_acc(P2, P2, b) for b in BETA_GRID],
+                   os.path.join(OUT, "m5_s8_awakening.png"))
     _fig_correspondence(D_grid, sstar, log2s, BETA_GRID, beta_c, c1_rho, c2_rho,
                         os.path.join(OUT, "m5_s1_correspondence.png"))
-
-    # control K_u(T) flat line (seed 5)
     X = torch.as_tensor(P2, dtype=torch.float32).T.contiguous(); d = P2.shape[1]
     means, sds = [], []
     for ti, T in enumerate(T_GRID):
@@ -200,29 +196,40 @@ def main():
             accs.append(ok / N)
         means.append(float(np.mean(accs))); sds.append(float(np.std(accs)))
     _fig_control(T_GRID, means, sds, os.path.join(OUT, "m5_s8_control_flat.png"))
+    return checks
 
-    # ===================== assert re-proof (STOP on mismatch) =====================
-    asserts = [
+
+def evaluate_asserts(checks):
+    return [
         ("c1_rho == -0.863 ± 0.005", abs(checks["c1_rho"] - (-0.863)) <= 0.005, checks["c1_rho"]),
         ("c2_rho == 1.000", abs(checks["c2_rho"] - 1.000) <= 1e-6, checks["c2_rho"]),
         ("b1_offdiag_min == 0.917 ± 0.005", abs(checks["b1_offdiag_min"] - 0.9166667) <= 0.005, checks["b1_offdiag_min"]),
         ("m32_fidelity_mean == 0.526 ± 0.005", abs(checks["m32_fidelity_mean"] - 0.526) <= 0.005, checks["m32_fidelity_mean"]),
         ("windowed_silverman_p > 0.05", checks["windowed_silverman_p"] > 0.05, checks["windowed_silverman_p"]),
     ]
-    runtime = time.time() - t0
-    result = {"checks": checks, "asserts": [{"name": n, "pass": bool(p), "value": float(v)} for n, p, v in asserts],
-              "all_pass": all(p for _, p, _ in asserts), "runtime_sec": round(runtime, 2),
-              "n_figures": 13, "linking": "official gap=1"}
-    json.dump(result, open(os.path.join(OUT, "regen_report.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=2)
-    _write_readme(OUT)
 
+
+def main(figures=True):
+    t0 = time.time()
+    checks = compute_checks(figures=figures)
+    asserts = evaluate_asserts(checks)
+    all_pass = all(p for _, p, _ in asserts)
+    runtime = time.time() - t0
+    if figures:
+        json.dump({"checks": checks,
+                   "asserts": [{"name": n, "pass": bool(p), "value": float(v)} for n, p, v in asserts],
+                   "all_pass": all_pass, "runtime_sec": round(runtime, 2),
+                   "n_figures": 13, "linking": "official gap=1"},
+                  open(os.path.join(OUT, "regen_report.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=2)
+        _write_readme(OUT)
     for n, p, v in asserts:
         print(f"  [{'PASS' if p else 'FAIL'}] {n}  (got {v:.4f})")
-    if not result["all_pass"]:
+    if not all_pass:
         print("STOP: re-proof assert mismatch (reproducibility break)")
         return 1
-    print(f"M5 materials: 13 figures regenerated, all asserts PASS, {runtime:.1f}s -> {OUT}")
+    tag = "13 figures + " if figures else "no-figures "
+    print(f"M5 materials: {tag}all asserts PASS, {runtime:.1f}s")
     return 0
 
 
@@ -421,4 +428,9 @@ M3-2 忠実度 mean=0.526±0.005 / 窓内 Silverman p>0.05。結果は `regen_re
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+    ap = argparse.ArgumentParser(description="Regenerate v0.2 M5 arc figures + re-proof asserts")
+    ap.add_argument("--no-figures", action="store_true",
+                    help="skip figure generation (assert re-proof only, faster)")
+    args = ap.parse_args()
+    raise SystemExit(main(figures=not args.no_figures))
