@@ -6,6 +6,108 @@ equivalence (Ramsauer 2020) under the aya-sleep stochastic dynamics.
 
 This is the first behavioral demo of Ayaram.
 
+The material below documents **v0.1**. The current release is **v0.2.0** —
+see the section immediately following.
+
+---
+
+# v0.2 — scale-space integration (尺跨ぎ)
+
+*Current release: `v0.2.0` (merge `88d8638`).* Of the four map operators — the
+wall, the **scale-crossing** (尺跨ぎ), the nesting, the parallel — v0.2 implements
+and *measures* the one that existed in no computational system: scale-crossing,
+via the integration of scale-space theory into the v0.1 Modern Hopfield. The
+architecture is unchanged; only the cargo is swapped — each layer's memory goes
+from hand-carved abstractions (radicals, etymology) to scale bands that heat
+grows.
+
+The arc is six verbs: **melt (M1) → band (M1b) → stack (M2) → return (M3) →
+balance (M4) → re-run (M5)** — 溶ける・帯・積む・帰る・天秤・再演.
+
+## Four-line conclusion
+
+1. **The balance is real.** Between the recall inverse-temperature β and the
+   input scale σ there are two monotone correspondences — a *similarity axis*
+   (c1: confusion-structure map σ\*(β), Spearman ρ = **−0.863**, descending) and
+   a *cost axis* (c2: equi-discrimination β_c(σ), ρ = **+1.000**, ascending).
+   Both pre-registered, both hit (p < 0.0001). **This machine cools its recall
+   to keep telling things apart whenever its input is heated.**
+2. **Scale-crossing recall works.** Cross-scale recall between memory banks is
+   off-diagonal **0.92–1.00** within the plateau (chance 4.2%); the true
+   wall-crossing from the texture band is **0.875**.
+3. **Records run backwards.** The merge genealogy alone — the ledger of where
+   trajectories join — returns **52.6%** of the form and **79.2%** of the
+   identity. The tree remembers the path and forgets the stride; the forgotten
+   stride is recovered by the memory's basin.
+4. **Where the wall and the parts live.** There is exactly one σ-axis wall
+   (texture | structure). The human part-hierarchy does not live in σ
+   coordinates — it lives in the merge genealogy, the topology of confluence.
+
+![the balance — c1 similarity axis and c2 cost axis](results/m5_materials/m5_s1_correspondence.png)
+
+*The balance: c1's distance-valley map σ\*(β) (descending) beside c2's
+equi-discrimination β_c(σ) (ascending).*
+
+## Reproduce (the instrument and the watchman)
+
+The whole arc re-computes from `data/glyphs_128/glyphs_128.npz` — nothing is
+copied from prior results.
+
+```bash
+# the instrument: regenerate all 13 arc figures + the 5 re-proof asserts (~15 s)
+uv run python demos/regenerate_m5_materials.py
+
+# the watchman: the 5 numbers only, no figures, as a pytest guard (~11 s)
+uv run python demos/regenerate_m5_materials.py --no-figures
+uv run pytest tests/test_v02_regression.py    # test_v02_arc_reproof
+```
+
+The five re-proof numbers (a v0.3 change that breaks the arc fails fast):
+c1 ρ = −0.863 ± 0.005 · c2 ρ = 1.000 · B1 off-diagonal min = 0.917 ± 0.005 ·
+M3-2 fidelity mean = 0.526 ± 0.005 · windowed Silverman p > 0.05.
+
+## Release
+
+Annotated tag **`v0.2.0`** on merge commit `88d8638`. Milestone arc (8 commits):
+
+```
+d404124 → 71dbf6d → 119e162 → d4936ef → 3aaabac → 76cc151 → 9db7d4b → 1e8f929
+ (v0.1.5   M0        M1        M1b       M2        M3        M4        M5 mat.)
+  merge)
+```
+
+Measurement: ~145 s (M1–M4). CPU-deterministic; the control sweep uses recorded
+seeds. Tests grew 117 → 135, unbroken at every step.
+
+## What is claimed, and what is not (defensible line, §9-3)
+
+**Claimed.** Scale-crossing recall (plateau 0.92+, one wall-crossing point
+0.875); the single-band structure on the σ axis; that this representation is *a
+positional eye* (fixed by a pre-registered control — shape-similar pairs beat
+part-sharing pairs); the tree-only replay's 52.6% / 79.2%; the two arms of the
+balance (both pre-registered, both hit).
+
+**Not claimed.** **What crossed is recall, not a change of description** — v0.2
+built the tower of scales and the movement/reference within it, not the full
+"…………" where the measuring stick itself is re-pinned. This representation
+carries no part *meaning* (a limit, established by B2, not a claim). The physical
+heat K_u(T) bridge is **not** built (the control is a flat NULL). Generality is
+limited to **24 kanji, a single font, 128 px, one writing system**.
+
+## Bibliography (principal sources)
+
+- **Iijima, T. (1959 / 1962)** — the first axiomatic derivation of linear
+  scale-space, in Japan, inside character-recognition research (source and
+  testbed shake hands).
+- **Lindeberg, T. (1994 / 1998)** — scale-space theory and feature detection
+  with automatic scale selection (the γ-normalized LoG convention used here).
+- **Ramsauer et al. (arXiv 2020 / ICLR 2021)** — Modern Hopfield ≡ attention;
+  the recall operator v0.2 stores its scale bands in.
+- **Rissanen, Heinonen, Solin (ICLR 2023)** — generative modelling with inverse
+  heat dissipation (the relative of the §7 backward replay).
+
+---
+
 ## Purpose (from the requirements doc)
 
 > アヤラムの基本動作を、PyTorch のソフトウェアシミュレーションで実装・検証する。
